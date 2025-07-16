@@ -1,0 +1,272 @@
+/**
+ * CSS spécifique à ending.html
+ * Styles personnalisés pour la page de fin de stream
+ */
+
+/* Font Baron Neue */
+@font-face {
+    font-family: 'Baron Neue Black';
+    src: url('../fonts/Baron\ Neue\ Black.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+/* Particules spéciales pour la fin */
+.particle {
+    width: 6px;
+    height: 6px;
+    background: rgba(59, 130, 246, 0.8);
+}
+
+/* Météores dorés pour ending */
+.meteor {
+    background: linear-gradient(to bottom, rgba(255, 215, 0, 0.8), transparent);
+}
+
+/* Couleur néon bleue pour ending */
+.neon-border {
+    box-shadow:
+        0 0 5px rgba(59, 130, 246, 0.5),
+        0 0 10px rgba(59, 130, 246, 0.3),
+        0 0 15px rgba(59, 130, 246, 0.2),
+        inset 0 0 5px rgba(59, 130, 246, 0.1);
+    animation: neonPulseBlue 2s ease-in-out infinite alternate;
+}
+
+@keyframes neonPulseBlue {
+    0% {
+        box-shadow:
+            0 0 5px rgba(59, 130, 246, 0.5),
+            0 0 10px rgba(59, 130, 246, 0.3),
+            0 0 15px rgba(59, 130, 246, 0.2),
+            inset 0 0 5px rgba(59, 130, 246, 0.1);
+    }
+    100% {
+        box-shadow:
+            0 0 10px rgba(59, 130, 246, 0.8),
+            0 0 20px rgba(59, 130, 246, 0.6),
+            0 0 30px rgba(59, 130, 246, 0.4),
+            inset 0 0 10px rgba(59, 130, 246, 0.2);
+    }
+}
+
+/* Chat avec couleur bleue pour ending */
+.chat-header {
+    color: #3b82f6;
+}
+
+.chat-username {
+    color: #3b82f6;
+}
+
+/* Icônes bleues pour ending */
+.info-icon {
+    color: #3b82f6;
+}
+
+/* Gradients bleus pour les titres */
+h1 {
+    background: linear-gradient(45deg, #3b82f6, #60a5fa, #93c5fd, #3b82f6);
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 3s ease infinite, textGlow 2s ease-in-out infinite alternate, titleEntrance 10s ease-in-out infinite;
+}
+
+p {
+    animation: fadeInUp 1s ease-out 0.5s both, subtitleEntrance 10s ease-in-out infinite;
+}
+
+/* Animation d'entrée répétée pour le titre */
+@keyframes titleEntrance {
+    0% {
+        opacity: 0;
+        transform: scale(0.8) translateY(-50px);
+    }
+    8% {
+        opacity: 1;
+        transform: scale(1.1) translateY(0px);
+    }
+    12% {
+        transform: scale(1) translateY(0px);
+    }
+    85% {
+        opacity: 1;
+        transform: scale(1) translateY(0px);
+    }
+    92% {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.8) translateY(-50px);
+    }
+}
+
+/* Animation d'entrée répétée pour le sous-titre */
+@keyframes subtitleEntrance {
+    0% {
+        opacity: 0;
+        transform: translateX(-100px);
+    }
+    5% {
+        opacity: 0;
+        transform: translateX(-100px);
+    }
+    15% {
+        opacity: 1;
+        transform: translateX(0px);
+    }
+    85% {
+        opacity: 1;
+        transform: translateX(0px);
+    }
+    95% {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(-100px);
+    }
+}
+
+/* Message de remerciement */
+.thanks-message {
+    font-size: 1.2em;
+    margin-top: 1em;
+    color: #60a5fa;
+    opacity: 0;
+    animation: fadeInUp 1s ease-out 1.5s both;
+}
+
+.typing-text {
+    overflow: hidden;
+    border-right: 3px solid #3b82f6;
+    white-space: nowrap;
+    animation: typing 2s steps(40, end) 1s both, blink 1s infinite;
+    animation-iteration-count: infinite;
+    animation-duration: 10s, 1s;
+    animation-delay: 0s, 0s;
+    animation-name: typingLoop, blink;
+}
+
+@keyframes typingLoop {
+    0% {
+        width: 0;
+    }
+    10% {
+        width: 100%;
+    }
+    80% {
+        width: 100%;
+    }
+    90%, 100% {
+        width: 0;
+    }
+}
+
+@keyframes blink {
+    0%, 50% {
+        border-color: transparent;
+    }
+    51%, 100% {
+        border-color: #3b82f6;
+    }
+}
+
+/* Statistiques de stream */
+.stream-stats {
+    /* NE PAS mettre position: absolute */
+    background: rgba(30, 41, 59, 0.9);
+    padding: 20px 30px;
+    border-radius: 20px;
+    border: 2px solid #3b82f6;
+    z-index: 10;
+    margin: 0 auto auto auto; /* met une marge négative ici pour remonter */
+    max-width: 400px; /* ajuste comme tu veux */
+    animation: fadeInUp 1s ease-out 2s both;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
+    font-size: 1.1em;
+}
+
+.stat-icon {
+    color: #3b82f6;
+    margin-right: 10px;
+    font-size: 1.5em;
+    animation: iconPulse 2s ease-in-out infinite;
+}
+
+.stat-value {
+    color: #3b82f6;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+/* Particules flottantes - modifiées pour la fin */
+.particle {
+    animation: floatUp 6s infinite linear;
+}
+
+/* Étoiles bleues scintillantes */
+.star {
+    width: 3px;
+    height: 3px;
+    background: #3b82f6;
+    animation: twinkle 2s infinite;
+}
+
+@keyframes twinkle {
+    0%, 100% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.5);
+    }
+}
+
+/* Météores bleus */
+.meteor {
+    width: 3px;
+    height: 60px;
+    background: linear-gradient(to bottom, rgba(59, 130, 246, 0.9), transparent);
+    animation: meteorFall 3s infinite linear;
+}
+
+/* Effet de respiration sur le fond avec couleur bleue */
+.breathing-effect {
+    background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05), transparent 70%);
+    animation: breathe 6s ease-in-out infinite;
+}
+
+/* Lignes de circuit bleues */
+.circuit-line {
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), transparent);
+    animation: circuitFlow 6s linear infinite;
+}
+
+/* Feux d'artifice */
+.fireworks {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.overlay {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    position: relative;
+}

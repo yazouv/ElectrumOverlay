@@ -1,0 +1,529 @@
+/**
+ * CSS commun pour les overlays Twitch
+ * Contient tous les styles partagés entre starting.html, index.html et ending.html
+ */
+
+/* ========== STYLES DE BASE ========== */
+body {
+    margin: 0;
+    font-family: 'Inter', Arial, sans-serif;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #1e293b;
+    position: relative;
+    color: #e2e8f0;
+}
+
+/* Police personnalisée */
+@font-face {
+    font-family: 'Baron Neue Black';
+    src: url('../fonts/Baron\ Neue\ Black.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+/* ========== CONTENEUR D'ALERTES ========== */
+.alert-container {
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    width: 40vw;
+    max-width: 600px;
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border-radius: 20px;
+    padding: 3vh 2vw;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+    border: 3px solid #475569;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+    z-index: 300;
+    display: none;
+}
+
+.alert-container.show {
+    display: block;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.alert-container.hide {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+}
+
+.alert-icon {
+    font-size: 5vh;
+    margin-bottom: 2vh;
+    color: #60a5fa;
+    animation: bounce 0.5s infinite alternate;
+}
+
+.alert-title {
+    color: #60a5fa;
+    font-size: 2.5vh;
+    font-weight: 800;
+    margin-bottom: 1vh;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.alert-username {
+    color: #f1f5f9;
+    font-size: 3vh;
+    font-weight: 700;
+    margin-bottom: 1vh;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.alert-message {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.6vh;
+    font-weight: 500;
+}
+
+.alert-amount {
+    color: #fbbf24;
+    font-size: 2.2vh;
+    font-weight: 800;
+    margin: 1vh 0;
+}
+
+/* ========== ANIMATIONS COMMUNES ========== */
+@keyframes bounce {
+    0% {
+        transform: translateY(0);
+    }
+    100% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 0.6;
+    }
+    100% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+}
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes textGlow {
+    0% {
+        text-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
+    }
+    100% {
+        text-shadow: 0 0 20px rgba(96, 165, 250, 0.8), 0 0 30px rgba(96, 165, 250, 0.6);
+    }
+}
+
+@keyframes fadeInUp {
+    0% {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes iconPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+@keyframes slideInChat {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes floatUp {
+    0% {
+        transform: translateY(100vh) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100px) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+@keyframes twinkle {
+    0%, 100% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+}
+
+@keyframes meteorFall {
+    0% {
+        transform: translateY(-100px) translateX(0px) rotate(45deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) translateX(-200px) rotate(45deg);
+        opacity: 0;
+    }
+}
+
+@keyframes soundWave {
+    0% {
+        transform: scale(0.8);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+@keyframes neonPulse {
+    0% {
+        box-shadow:
+            0 0 5px rgba(96, 165, 250, 0.5),
+            0 0 10px rgba(96, 165, 250, 0.3),
+            0 0 15px rgba(96, 165, 250, 0.2),
+            inset 0 0 5px rgba(96, 165, 250, 0.1);
+    }
+    100% {
+        box-shadow:
+            0 0 10px rgba(96, 165, 250, 0.8),
+            0 0 20px rgba(96, 165, 250, 0.6),
+            0 0 30px rgba(96, 165, 250, 0.4),
+            inset 0 0 10px rgba(96, 165, 250, 0.2);
+    }
+}
+
+@keyframes breathe {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.3;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.6;
+    }
+}
+
+@keyframes circuitFlow {
+    0% {
+        opacity: 0;
+    }
+    20% {
+        opacity: 1;
+    }
+    80% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+/* ========== PANNEAU DE CHAT ========== */
+.chat-panel {
+    position: absolute;
+    top: 25vh;
+    right: 2vw;
+    width: 15vw;
+    height: 40vh;
+    background: linear-gradient(135deg, #1e293b00 0%, #334155 100%);
+    border-radius: 15px;
+    padding: 2vh 1.5vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 2px solid #475569;
+    z-index: 100;
+}
+
+.chat-header {
+    color: #88b9f5;
+    font-size: 1.4vh;
+    font-weight: 700;
+    margin-bottom: 1.5vh;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    align-items: center;
+    gap: 0.8vw;
+    border-bottom: 2px solid #475569;
+    padding-bottom: 1vh;
+    text-align: center;
+}
+
+.chat-container {
+    height: 30vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #475569 transparent;
+    overflow: hidden;
+}
+
+.chat-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-container::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 3px;
+}
+
+.chat-message {
+    background: rgba(59, 130, 246, 0.1);
+    padding: 1vh 1vw;
+    border-radius: 10px;
+    margin-bottom: 1vh;
+    border-left: 3px solid #3b82f6;
+    animation: slideInChat 0.3s ease-out;
+}
+
+.chat-badge {
+    width: 2vh;
+    height: 2vh;
+    margin-right: 3px;
+    vertical-align: middle;
+}
+
+.chat-username {
+    color: #60a5fa;
+    font-weight: 600;
+    font-size: 1.2vh;
+    margin-bottom: 0.3vh;
+}
+
+.chat-text {
+    color: #e2e8f0;
+    font-size: 1.1vh;
+    line-height: 1.3;
+}
+
+/* ========== BARRE DU BAS ========== */
+.bottom-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 20px;
+    height: 70px;
+    background: rgba(30, 41, 59, 0.7);
+    border: 3px solid #475569;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.bottom-info {
+    display: flex;
+    align-items: center;
+}
+
+.info-icon {
+    margin-right: 10px;
+    font-size: 2em;
+    color: #60a5fa;
+    animation: iconPulse 2s ease-in-out infinite;
+}
+
+.info-text {
+    color: #e2e8f0;
+    font-size: 1.2em;
+}
+
+/* ========== ÉLÉMENTS ANIMÉS ========== */
+.background-animation {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.2), rgb(30, 41, 59));
+    animation: pulse 4s infinite alternate;
+    z-index: 0;
+}
+
+.breathing-effect {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 50% 50%, rgba(96, 165, 250, 0.05), transparent 70%);
+    animation: breathe 6s ease-in-out infinite;
+    z-index: 0;
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 1;
+    padding: 20px;
+}
+
+/* ========== PARTICULES ET ÉTOILES ========== */
+.particles {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(96, 165, 250, 0.6);
+    border-radius: 50%;
+    animation: floatUp 8s infinite linear;
+}
+
+.stars {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: #fff;
+    border-radius: 50%;
+    animation: twinkle 3s infinite;
+}
+
+.meteors {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.meteor {
+    position: absolute;
+    width: 2px;
+    height: 50px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8), transparent);
+    border-radius: 50%;
+    animation: meteorFall 4s infinite linear;
+}
+
+.circuit-lines {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.circuit-line {
+    position: absolute;
+    background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.5), transparent);
+    animation: circuitFlow 8s linear infinite;
+}
+
+.circuit-line.horizontal {
+    height: 2px;
+    width: 200px;
+}
+
+.circuit-line.vertical {
+    width: 2px;
+    height: 200px;
+}
+
+/* ========== EFFET NÉON ========== */
+.neon-border {
+    box-shadow:
+        0 0 5px rgba(96, 165, 250, 0.5),
+        0 0 10px rgba(96, 165, 250, 0.3),
+        0 0 15px rgba(96, 165, 250, 0.2),
+        inset 0 0 5px rgba(96, 165, 250, 0.1);
+    animation: neonPulse 2s ease-in-out infinite alternate;
+}
+
+/* ========== LOGO DVD ========== */
+#dvdLogo {
+    position: absolute;
+    width: 50px;
+    transition: transform 0.1s;
+}
+
+.sound-waves {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border: 2px solid rgba(96, 165, 250, 0.3);
+    border-radius: 50%;
+    animation: soundWave 2s infinite;
+}
+
+/* ========== ÉLÉMENTS DE BASE ========== */
+h1 {
+    font-size: 4em;
+    margin-bottom: 0.5em;
+    background: linear-gradient(45deg, #60a5fa, #3b82f6, #1d4ed8, #60a5fa);
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 3s ease infinite, textGlow 2s ease-in-out infinite alternate;
+}
+
+p {
+    font-size: 1.5em;
+    margin-bottom: 1em;
+    animation: fadeInUp 1s ease-out 0.5s both;
+}

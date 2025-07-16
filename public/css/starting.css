@@ -1,0 +1,221 @@
+/**
+ * CSS spécifique à starting.html
+ * Styles personnalisés pour la page d'attente de stream
+ */
+
+/* Animations spécifiques au titre */
+h1 {
+    animation: gradientShift 3s ease infinite, textGlow 2s ease-in-out infinite alternate, titleEntrance 10s ease-in-out infinite;
+}
+
+p {
+    animation: fadeInUp 1s ease-out 0.5s both, subtitleEntrance 10s ease-in-out infinite;
+}
+
+/* Animation d'entrée répétée pour le titre */
+@keyframes titleEntrance {
+    0% {
+        opacity: 0;
+        transform: scale(0.8) translateY(-50px);
+    }
+
+    8% {
+        opacity: 1;
+        transform: scale(1.1) translateY(0px);
+    }
+
+    12% {
+        transform: scale(1) translateY(0px);
+    }
+
+    85% {
+        opacity: 1;
+        transform: scale(1) translateY(0px);
+    }
+
+    92% {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(0.8) translateY(-50px);
+    }
+}
+
+/* Animation d'entrée répétée pour le sous-titre */
+@keyframes subtitleEntrance {
+    0% {
+        opacity: 0;
+        transform: translateX(-100px);
+    }
+
+    5% {
+        opacity: 0;
+        transform: translateX(-100px);
+    }
+
+    15% {
+        opacity: 1;
+        transform: translateX(0px);
+    }
+
+    85% {
+        opacity: 1;
+        transform: translateX(0px);
+    }
+
+    95% {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(-100px);
+    }
+}
+
+/* Animation de typing */
+.typing-text {
+    overflow: hidden;
+    border-right: 3px solid #60a5fa;
+    white-space: nowrap;
+    animation: typing 2s steps(40, end) 1s both, blink 1s infinite;
+    animation-iteration-count: infinite;
+    animation-duration: 10s, 1s;
+    animation-delay: 0s, 0s;
+    animation-name: typingLoop, blink;
+}
+
+@keyframes typing {
+    0% {
+        width: 0;
+    }
+
+    100% {
+        width: 100%;
+    }
+}
+
+@keyframes blink {
+    0%,
+    50% {
+        border-color: transparent;
+    }
+
+    51%,
+    100% {
+        border-color: #60a5fa;
+    }
+}
+
+@keyframes typingLoop {
+    0% {
+        width: 0;
+    }
+
+    10% {
+        width: 100%;
+    }
+
+    80% {
+        width: 100%;
+    }
+
+    90%,
+    100% {
+        width: 0;
+    }
+}
+
+/* Barre de progression animée */
+.progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #60a5fa, #3b82f6, #1d4ed8);
+    animation: progressLoad 4s ease-in-out infinite;
+}
+
+/* Indicateur de temps d'attente */
+.waiting-indicator {
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30, 41, 59, 0.9);
+    padding: 15px 30px;
+    border-radius: 50px;
+    border: 2px solid #60a5fa;
+    z-index: 10;
+}
+
+.waiting-dots {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    align-items: center;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    background: #60a5fa;
+    border-radius: 50%;
+    animation: dotPulse 1.5s infinite;
+}
+
+.dot:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.dot:nth-child(2) {
+    animation-delay: 0.3s;
+}
+
+.dot:nth-child(3) {
+    animation-delay: 0.6s;
+}
+
+@keyframes dotPulse {
+    0%,
+    60%,
+    100% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+
+    30% {
+        transform: scale(1.3);
+        opacity: 1;
+    }
+}
+
+/* Compteur de viewers */
+.viewer-counter {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(30, 41, 59, 0.9);
+    padding: 10px 20px;
+    border-radius: 25px;
+    border: 2px solid #60a5fa;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 10;
+}
+
+.viewer-count {
+    color: #60a5fa;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.viewer-icon {
+    color: #60a5fa;
+    animation: iconPulse 2s ease-in-out infinite;
+}

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overlay ELECTRUM VTC</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/overlay-common.css">
+    <link rel="stylesheet" href="css/index.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
+</head>
+
+<body>
+    <!-- Panneau popup gauche -->
+    <div class="left-panel" id="leftPanel">
+        <div class="panel-close-timer">
+            <div class="timer-progress"></div>
+        </div>
+
+        <div class="panel-section">
+            <div class="panel-title">
+                <i class="fas fa-truck"></i>
+                TRAJET ACTUEL
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Destination</span>
+                <span class="stat-value">Berlin → Paris</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Distance</span>
+                <span class="stat-value">1,244 km</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Cargaison</span>
+                <span class="stat-value">Conteneurs</span>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <div class="panel-title">
+                <i class="fas fa-chart-line"></i>
+                MES STATS
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Km parcourus</span>
+                <span class="stat-value">45,890 km</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Trajets accomplis</span>
+                <span class="stat-value">127</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Rank VTC</span>
+                <span class="stat-value">Capitaine</span>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <div class="panel-title">
+                <i class="fas fa-users"></i>
+                COMMUNITY
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Membres Discord</span>
+                <span class="stat-value">1,247</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Chauffeurs</span>
+                <span class="stat-value">89</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Recrutements</span>
+                <span class="stat-value">Ouverts ! 🟢</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Twitch -->
+    <div class="chat-panel">
+        <div class="chat-header">
+            <i class="fas fa-comments"></i>
+            CHAT
+        </div>
+        <div class="chat-container" id="chatContainer">
+        </div>
+    </div>
+
+    <!-- Alertes Twitch -->
+    <div class="alert-container" id="alertContainer">
+        <div class="alert-icon" id="alertIcon">
+            <i class="fas fa-heart"></i>
+        </div>
+        <div class="alert-title" id="alertTitle">NOUVEAU FOLLOWER</div>
+        <div class="alert-username" id="alertUsername">Username</div>
+        <div class="alert-message" id="alertMessage">Merci pour le follow !</div>
+        <div class="alert-amount" id="alertAmount" style="display: none;">€5.00</div>
+    </div>
+
+
+    <!-- Barre du bas -->
+    <div class="bottom-bar" id="bottomBar">
+        <div class="bottom-info">
+            <div class="info-item">
+                <div class="info-icon">
+                    <i class="fab fa-twitch"></i>
+                </div>
+                <div class="info-text">twitch.tv/yazouv
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-icon">
+                    <i class="fab fa-discord"></i>
+                </div>
+                <div class="info-text">discord.electrumvtc.fr</div>
+            </div>
+            <div class="info-item">
+                <div class="info-icon">
+                    <i class="fas fa-globe"></i>
+                </div>
+                <div class="info-text">electrumvtc.fr</div>
+            </div>
+        </div>
+        <div class="scrolling-text">
+            <div class="scroll-content">
+                🚛 ELECTRUM VTC recrute ! • Convois organisés • Ambiance conviviale • !electrum pour plus d'infos •
+                discord.electrumvtc.fr • Rejoignez-nous ! ⚡
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/overlay-common.js"></script>
+    <script src="js/index.js"></script>
+
+</body>
+
+</html>

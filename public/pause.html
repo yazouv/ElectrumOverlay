@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pause - Stream en pause</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/overlay-common.css">
+    <link rel="stylesheet" href="css/pause.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
+</head>
+
+<body>
+    <div class="background-animation"></div>
+    <div class="breathing-effect"></div>
+
+    <!-- Étoiles scintillantes -->
+    <div class="stars" id="stars"></div>
+
+    <!-- Météores -->
+    <div class="meteors" id="meteors"></div>
+
+    <!-- Lignes de circuit -->
+    <div class="circuit-lines" id="circuitLines"></div>
+
+    <!-- Particules flottantes -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Image du logo DVD avec ondes sonores -->
+    <div style="position: absolute;" id="logoContainer">
+        <img id="dvdLogo" src="logo.png" alt="DVD Logo">
+    </div>
+
+    <!-- Indicateur de pause avec animation -->
+    <div class="pause-indicator neon-border">
+        <div class="pause-icon">
+            <i class="fas fa-pause"></i>
+        </div>
+        <div style="color: #3b82f6; font-size: 0.9em; margin-top: 10px; text-align: center;">PAUSE</div>
+        <div class="pulse-dots">
+            <div class="pulse-dot"></div>
+            <div class="pulse-dot"></div>
+            <div class="pulse-dot"></div>
+        </div>
+    </div>
+
+    <div class="overlay">
+        <div>
+            <h1 class="shine-effect pause-title" style="font-family: 'Baron Neue Black', Arial, sans-serif;">
+                <i class="fas fa-pause pause-icon-title"></i>
+                PAUSE
+            </h1>
+            <p class="typing-text pause-subtitle" style="font-family: 'Baron Neue Black', Arial, sans-serif;">
+                Le stream reprendra dans un instant...
+            </p>
+
+            <!-- Messages de pause rotatifs -->
+            <div class="pause-messages">
+                <div class="pause-message active">🎮 Pause technique - On revient tout de suite !</div>
+                <div class="pause-message">☕ Petite pause café - Restez connectés !</div>
+                <div class="pause-message">💬 N'hésitez pas à discuter en attendant !</div>
+                <div class="pause-message">🔧 Quelques ajustements - Merci de patienter !</div>
+                <div class="pause-message">⏱️ Pause rapide - On est de retour bientôt !</div>
+                <div class="pause-message">🎵 Pause musicale - Profitez du son !</div>
+                <div class="pause-message">🍕 Pause déjeuner - À tout de suite !</div>
+                <div class="pause-message">🛠️ Mise à jour en cours - Patience !</div>
+                <div class="pause-message">🎯 Préparation du prochain segment !</div>
+            </div>
+
+            <!-- Barre de progression animée -->
+            <div class="pause-progress-container">
+                <div class="pause-progress-bar">
+                    <div class="pause-progress-fill"></div>
+                </div>
+                <div class="pause-progress-text">Reprise imminente...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Horloge en temps réel -->
+    <div class="real-time-clock">
+        <i class="fas fa-clock"></i>
+        <span id="currentTime"></span>
+    </div>
+
+    <!-- Message de retour bientôt -->
+    <div class="back-soon-banner">
+        <div class="banner-content">
+            <i class="fas fa-arrow-right"></i>
+            <span>De retour bientôt</span>
+            <i class="fas fa-arrow-left"></i>
+        </div>
+    </div>
+
+    <!-- Compteur de spectateurs en pause -->
+    <div class="viewers-waiting">
+        <i class="fas fa-users"></i>
+        <span id="viewersCount">---</span>
+        <span>en attente</span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/overlay-common.js"></script>
+    <script src="js/pause.js"></script>
+</body>
+
+</html>

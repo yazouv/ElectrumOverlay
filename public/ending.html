@@ -1,0 +1,111 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fin de stream</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/overlay-common.css">
+    <link rel="stylesheet" href="css/ending.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
+</head>
+
+<body>
+    <div class="background-animation"></div>
+    <div class="breathing-effect"></div>
+
+    <!-- Étoiles scintillantes -->
+    <div class="stars" id="stars"></div>
+
+    <!-- Météores dorés -->
+    <div class="meteors" id="meteors"></div>
+
+    <!-- Lignes de circuit -->
+    <div class="circuit-lines" id="circuitLines"></div>
+
+    <!-- Particules flottantes -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Image du logo DVD -->
+    <div style="position: absolute;" id="logoContainer">
+        <img id="dvdLogo" src="logo.png" alt="DVD Logo">
+    </div>
+
+    <div class="overlay">
+        <div>
+            <!-- Statistiques du stream -->
+            <div class="stream-stats neon-border">
+                <div class="stat-item">
+                    <i class="fas fa-clock stat-icon"></i>
+                    <span class="stat-value" id="streamDurationText">...</span>
+                    <span>Temps de stream</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-comments stat-icon"></i>
+                    <span class="stat-value" id="totalMessages">...</span>
+                    <span>messages</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-heart stat-icon"></i>
+                    <span class="stat-value" id="newFollowers">...</span>
+                    <span>nouveaux followers</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-money-bill-wave stat-icon"></i>
+                    <span class="stat-value" id="newSubs">...</span>
+                    <span>nouveaux subs</span>
+                </div>
+            </div>
+            <h1 style="font-family: 'Baron Neue Black', Arial, sans-serif;">Merci d'avoir regardé !</h1>
+            <p style="font-family: 'Baron Neue Black', Arial, sans-serif;">
+                À bientôt pour une nouvelle aventure !
+            </p>
+            <div class="thanks-message" style="font-family: 'Baron Neue Black', Arial, sans-serif;">
+                Votre soutien compte énormément ! 💖
+            </div>
+        </div>
+    </div>
+
+    <!-- Alertes Twitch -->
+    <div class="alert-container" id="alertContainer">
+        <div class="alert-icon" id="alertIcon">
+            <i class="fas fa-heart"></i>
+        </div>
+        <div class="alert-title" id="alertTitle">NOUVEAU FOLLOWER</div>
+        <div class="alert-username" id="alertUsername">Username</div>
+        <div class="alert-message" id="alertMessage">Merci pour le follow !</div>
+        <div class="alert-amount" id="alertAmount" style="display: none;">5.00</div>
+    </div>
+
+    <!-- Chat Twitch -->
+    <div class="chat-panel neon-border">
+        <div class="chat-header">
+            <i class="fas fa-comments"></i>
+            CHAT
+        </div>
+        <div class="chat-container" id="chatContainer">
+        </div>
+    </div>
+
+    <!-- Barre du bas -->
+    <div class="bottom-bar neon-border">
+        <div class="bottom-info">
+            <i class="fab fa-twitch info-icon"></i><span class="info-text">twitch.tv/yazouv</span>
+        </div>
+        <div class="bottom-info">
+            <i class="fab fa-discord info-icon"></i><span class="info-text">discord.electrumvtc.fr</span>
+        </div>
+        <div class="bottom-info">
+            <i class="fas fa-globe info-icon"></i><span class="info-text">electrumvtc.fr</span>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/overlay-common.js"></script>
+    <script src="js/ending.js"></script>
+
+</body>
+
+</html>

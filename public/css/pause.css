@@ -1,0 +1,412 @@
+/**
+ * CSS spécifique à pause.html
+ * Styles personnalisés pour la page de pause de stream
+ */
+
+/* Animations spécifiques au titre de pause */
+.pause-title {
+    animation: pausePulse 2s ease-in-out infinite, gradientShift 4s ease infinite, textGlow 2s ease-in-out infinite alternate;
+    color: #0b55f5;
+    text-shadow: 0 0 20px #0b42f5, 0 0 40px #0bd2f5;
+}
+
+.pause-subtitle {
+    animation: fadeInUp 1s ease-out 0.5s both, subtlePulse 3s ease-in-out infinite;
+    color: #94a3b8;
+}
+
+.pause-icon-title {
+    margin-right: 15px;
+    animation: pauseIconBounce 1.5s ease-in-out infinite;
+}
+
+/* Animation de pulsation pour l'icône pause */
+@keyframes pauseIconBounce {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+/* Animation de pulsation pour le titre */
+@keyframes pausePulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+/* Animation subtile pour le sous-titre */
+@keyframes subtlePulse {
+    0%, 100% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Indicateur de pause */
+.pause-indicator {
+    position: fixed;
+    top: 30px;
+    right: 30px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #3b82f6;
+    border-radius: 15px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    animation: pauseIndicatorPulse 2s ease-in-out infinite;
+}
+
+.pause-icon {
+    font-size: 2em;
+    color: #3b82f6;
+    margin-bottom: 5px;
+    animation: pauseIconRotate 4s linear infinite;
+}
+
+@keyframes pauseIndicatorPulse {
+    0%, 100% {
+        box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 50px rgba(59, 130, 246, 0.7);
+    }
+}
+
+@keyframes pauseIconRotate {
+    0% { transform: rotate(0deg); }
+    25% { transform: rotate(5deg); }
+    75% { transform: rotate(-5deg); }
+    100% { transform: rotate(0deg); }
+}
+
+/* Points de pulsation */
+.pulse-dots {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: #3b82f6;
+    border-radius: 50%;
+    animation: pulseDots 1.5s ease-in-out infinite;
+}
+
+.pulse-dot:nth-child(2) {
+    animation-delay: 0.3s;
+}
+
+.pulse-dot:nth-child(3) {
+    animation-delay: 0.6s;
+}
+
+@keyframes pulseDots {
+    0%, 60%, 100% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+    30% {
+        transform: scale(1.5);
+        opacity: 1;
+    }
+}
+
+/* Logo avec effet de respiration */
+#pauseLogo {
+    animation: logoBreathing 3s ease-in-out infinite;
+    filter: brightness(0.8) contrast(1.2);
+}
+
+.logo-pulse-effect {
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
+    border: 2px solid #3b82f6;
+    border-radius: 50%;
+    animation: logoPulseRing 2s ease-out infinite;
+    opacity: 0;
+}
+
+@keyframes logoBreathing {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.9;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
+}
+
+@keyframes logoPulseRing {
+    0% {
+        transform: scale(0.8);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+/* Messages de pause rotatifs */
+.pause-messages {
+    margin-top: 40px;
+    height: 80px;
+    position: relative;
+    overflow: visible;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pause-message {
+    position: absolute;
+    width: auto;
+    min-width: 400px;
+    max-width: 600px;
+    text-align: center;
+    font-size: 1.2em;
+    color: #64748b;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.8s ease-in-out;
+    padding: 15px 25px;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 15px;
+    border: 1px dashed rgba(100, 116, 139, 0.3);
+    backdrop-filter: blur(5px);
+    box-sizing: border-box;
+}
+
+.pause-message.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Barre de progression de pause */
+.pause-progress-container {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.pause-progress-bar {
+    width: 300px;
+    height: 6px;
+    background: rgba(100, 116, 139, 0.3);
+    border-radius: 3px;
+    margin: 0 auto 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.pause-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #2a79f8, #3b82f6);
+    border-radius: 3px;
+    animation: pauseProgressAnimation 3s ease-in-out infinite;
+    width: 0%;
+}
+
+.pause-progress-text {
+    font-size: 0.9em;
+    color: #94a3b8;
+    animation: textFade 2s ease-in-out infinite;
+}
+
+@keyframes pauseProgressAnimation {
+    0% {
+        width: 0%;
+        transform: translateX(-100%);
+    }
+    50% {
+        width: 100%;
+        transform: translateX(0%);
+    }
+    100% {
+        width: 100%;
+        transform: translateX(100%);
+    }
+}
+
+@keyframes textFade {
+    0%, 100% {
+        opacity: 0.7;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Horloge en temps réel */
+.real-time-clock {
+    position: fixed;
+    top: 30px;
+    left: 30px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #3b82f6;
+    border-radius: 10px;
+    padding: 10px 15px;
+    color: #3b82f6;
+    font-family: 'Inter', monospace;
+    font-weight: 600;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    animation: clockGlow 3s ease-in-out infinite;
+}
+
+.real-time-clock i {
+    margin-right: 8px;
+}
+
+@keyframes clockGlow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
+    }
+}
+
+/* Bannière "De retour bientôt" */
+.back-soon-banner {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #1e293b, #334155);
+    border: 2px solid #10b981;
+    border-radius: 25px;
+    padding: 15px 30px;
+    animation: bannerSlide 4s ease-in-out infinite;
+}
+
+.banner-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: #10b981;
+    font-weight: 600;
+    font-size: 1.1em;
+}
+
+.banner-content i {
+    animation: arrowBounce 1s ease-in-out infinite alternate;
+}
+
+@keyframes bannerSlide {
+    0%, 100% {
+        transform: translateX(-50%) scale(1);
+    }
+    50% {
+        transform: translateX(-50%) scale(1.05);
+    }
+}
+
+@keyframes arrowBounce {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(5px);
+    }
+}
+
+/* Compteur de spectateurs en attente */
+.viewers-waiting {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #8b5cf6;
+    border-radius: 10px;
+    padding: 10px 15px;
+    color: #8b5cf6;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: viewersGlow 2.5s ease-in-out infinite;
+}
+
+@keyframes viewersGlow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(139, 92, 246, 0.6);
+    }
+}
+
+/* Animations d'apparition */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .pause-indicator {
+        top: 15px;
+        right: 15px;
+        padding: 10px;
+        font-size: 0.9em;
+    }
+    
+    .real-time-clock {
+        top: 15px;
+        left: 15px;
+        padding: 8px 12px;
+        font-size: 0.9em;
+    }
+    
+    .back-soon-banner {
+        bottom: 60px;
+        padding: 12px 20px;
+    }
+    
+    .banner-content {
+        font-size: 1em;
+        gap: 10px;
+    }
+    
+    .viewers-waiting {
+        bottom: 15px;
+        right: 15px;
+        padding: 8px 12px;
+        font-size: 0.9em;
+    }
+    
+    .pause-progress-bar {
+        width: 250px;
+    }
+    
+    .pause-messages {
+        margin-top: 30px;
+    }
+    
+    .pause-message {
+        font-size: 1em;
+        padding: 8px 15px;
+    }
+}
