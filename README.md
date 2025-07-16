@@ -264,11 +264,11 @@ curl -X POST http://localhost:8080/eventsub \
 ```
 
 ## 📷 Preview/Gallerie
-https://github.com/user-attachments/assets/cea6ea1d-829a-41ed-ba88-f8e95b234c7c
+![Starting](./readme/starting.gif)
 
-https://github.com/user-attachments/assets/b2822cf5-3421-4677-865c-31105b6978f5
+![Pause](./readme/pause.gif)
 
-https://github.com/user-attachments/assets/e34d237d-094e-47a8-85c5-57a512ca81c6
+![Ending](./readme/ending.gif)
 
 <div style="border-left: 4px solid #007bff; padding-left: 10px; margin-bottom: 20px;">
     <strong>Note :</strong> Les overlays sont conçus pour être utilisés avec OBS ou tout autre logiciel de streaming compatible.
