@@ -2,6 +2,8 @@
 
 Un système complet d'overlay pour Twitch avec intégration EventSub, animations en temps réel et statistiques de stream.
 
+> This readme is also available in [English](README-EN.md).
+
 ## 📋 Table des matières
 
 - [🚀 Fonctionnalités](#-fonctionnalités)
