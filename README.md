@@ -264,9 +264,15 @@ curl -X POST http://localhost:8080/eventsub \
 ```
 
 ## 📷 Preview/Gallerie
+> Ecran de démarrage
+  
 ![Starting](./readme/starting.gif)
 
+> Ecran de pause
+
 ![Pause](./readme/pause.gif)
+
+> Ecran de fin
 
 ![Ending](./readme/ending.gif)
 
