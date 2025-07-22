@@ -129,6 +129,18 @@ console.log('WEBHOOK_SECRET:', webhookSecret);
 - **Ne jamais partager** ou committer dans Git
 - **Utilisé pour vérifier** que les webhooks proviennent bien de Twitch
 
+#### ⚙️ Configuration des événements EventSub
+N'oubliez pas de configurer les conditions pour certains événements dans `src/config/config.js` (ligne 50-51) :
+
+```javascript
+"condition": {
+    "broadcaster_user_id": "197983290",     // Votre User ID
+    "moderator_user_id": "197983290"        // Même User ID pour être modérateur
+}
+```
+
+**Important :** Remplacez `"197983290"` par votre propre User ID Twitch obtenu à l'étape suivante.
+
 ### 🌐 2. Configuration Frontend (`public/js/config.js`)
 **✅ PUBLIC - Peut être partagé**
 
