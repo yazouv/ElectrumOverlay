@@ -113,6 +113,22 @@ Le système utilise **deux fichiers de configuration** séparés :
 ### 📋 1. Configuration Backend (`src/config/config.js`)
 **⚠️ SENSIBLE - Ne pas partager publiquement**
 
+#### 🔐 Génération du WEBHOOK_SECRET
+Le `WEBHOOK_SECRET` est un secret cryptographique utilisé pour sécuriser les webhooks Twitch EventSub. **Vous devez le générer vous-même** :
+
+```javascript
+// Dans Node.js (console ou script)
+const crypto = require('crypto');
+const webhookSecret = crypto.randomBytes(32).toString('hex');
+console.log('WEBHOOK_SECRET:', webhookSecret);
+```
+
+**Caractéristiques importantes :**
+- **32 caractères minimum** (64 caractères en hexadécimal recommandés)
+- **Aléatoire et unique** pour votre application
+- **Ne jamais partager** ou committer dans Git
+- **Utilisé pour vérifier** que les webhooks proviennent bien de Twitch
+
 ### 🌐 2. Configuration Frontend (`public/js/config.js`)
 **✅ PUBLIC - Peut être partagé**
 
