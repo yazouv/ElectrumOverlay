@@ -60,7 +60,7 @@ A complete overlay system for Twitch with EventSub integration, real-time animat
 
 ### 1. Clone the project
 ```bash
-git clone https://github.com/yazouv/electrum-overlay.git
+git clone https://github.com/yazouv/ElectrumOverlay.git
 cd electrum-overlay
 ```
 
