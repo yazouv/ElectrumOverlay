@@ -17,12 +17,31 @@ const interval = 500;
 const totalSteps = CONFIG.panelDuration / interval;
 
 // Système de popup toutes les 5 minutes
-function showInfoPanel() {
+async function showInfoPanel() {
     if (timerInterval) {
         clearInterval(timerInterval);
     }
+    const data = await fetch('/api/info-panel')
+        .then(response => response.json())
+        .catch(error => {
+            console.error('❌ Erreur lors de la récupération des données du panneau d\'information:', error);
+            return null;
+        });
+    if (!data) {
+        console.error('❌ Aucune donnée disponible pour le panneau d\'information.');
+        return;
+    }
     const panel = document.getElementById('leftPanel');
     const timer = panel.querySelector('.timer-progress');
+
+    updateLeftPanel('leftPanelDestination', `${data.lastJob.source_city_name} → ${data.lastJob.destination_city_name}`);
+    updateLeftPanel('leftPanelDistance', `${data.lastJob.planned_distance_km} km`);
+    updateLeftPanel('leftPanelCargo', `${data.lastJob.cargo_name} ( ${data.lastJob.cargo_mass_t}t )`);
+    updateLeftPanel('leftPanelRank', `${data.userData.role.name || 'Inconnu'}`);
+    updateLeftPanel('leftPanelDistanceVTC', `${seperateThousands(data.companyStats.distance_driven_on_job_km)} km`);
+    updateLeftPanel('leftPanelCompletedTrips', `${seperateThousands(data.companyStats.jobs_delivered)}`);
+    updateLeftPanel('leftPanelDrivers', `${seperateThousands(data.companyDetails.members_count)}`);
+    updateLeftPanel('leftPanelRecruitments', `${data.companyDetails.recruitment === 'open' ? '🟢 Ouverts' : '🔴 Fermés'}`);
 
     progress = 0;
     timer.style.background = `conic-gradient(#ef4444 0%, transparent 0%)`;
@@ -58,10 +77,24 @@ function showBottomBar() {
     }, CONFIG.bottomDuration);
 }
 
+function updateLeftPanel(id, value) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.textContent = value;
+    } else {
+        console.warn(`Élément avec l'ID ${id} non trouvé dans le panneau gauche.`);
+    }
+}
+
+function seperateThousands(value) {
+    const rounded = Math.round(Number(value));
+    return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
 // Initialisation automatique quand le DOM est prêt
 document.addEventListener('DOMContentLoaded', function () {
-    // Première popup après 30 secondes puis toutes les 5 minutes
-    // setTimeout(showInfoPanel, 30000);
+    // Première popup après 5 secondes puis toutes les 5 minutes
+    showInfoPanel();
     // setInterval(showInfoPanel, CONFIG.panelInterval);
 
     setTimeout(showBottomBar, 10000);

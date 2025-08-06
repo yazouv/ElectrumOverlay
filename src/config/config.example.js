@@ -26,6 +26,10 @@ module.exports = {
             "chat:edit",
         ]
     },
+    "trucky": {
+        "enable": true,
+        "USER_ID": "90694", // Remplacez par votre ID utilisateur Trucky
+    },
     "features": {
         "AUTO_SUBSCRIBE_EVENTS": true,
         "CLEANUP_ON_EXIT": true,

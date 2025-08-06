@@ -1,5 +1,6 @@
 const express = require('express');
 const config = require('../config/config');
+const TruckyApi = require('../services/TruckyApi');
 
 /**
  * Créer les routes pour l'API
@@ -20,6 +21,48 @@ function createRoutes(eventSubManager, streamStats, auth) {
         } catch (error) {
             console.error('❌ Erreur lors de la suppression des abonnements:', error);
             res.status(500).json({ error: 'Erreur lors de la suppression' });
+        }
+    });
+
+    router.get('/api/info-panel', async (req, res) => {
+        try {
+            const truckyapi = new TruckyApi();
+            if (config.trucky.enable) {
+                try {
+                    console.log('🔌 Initialisation de l\'API Trucky...');
+                    const userData = await truckyapi.getUserData();
+                    if (!userData) {
+                        console.log('⚠️ Aucun utilisateur trouvé pour l\'API Trucky.');
+                        return;
+                    }
+                    const lastJobData = await truckyapi.getUserLastJob();
+                    if (!lastJobData) {
+                        console.log('⚠️ Aucun job trouvé pour l\'utilisateur Trucky.');
+                        return;
+                    }
+                    
+                    var companyStats;
+                    var companyDetails;
+                    if (!userData.company_id) {
+                        console.log('⚠️ L\'utilisateur Trucky n\'a pas de société associée.');
+                        companyStats = null;
+                    } else {
+                        companyStats = await truckyapi.getCompanyStats(userData.company_id);
+                        companyDetails = await truckyapi.getCompanyDetails(userData.company_id);
+                    }
+                    return res.json({
+                        userData: userData,
+                        lastJob: lastJobData,
+                        companyStats: companyStats,
+                        companyDetails: companyDetails
+                    });
+                } catch (error) {
+                    console.error('❌ Erreur lors de l\'initialisation de l\'API Trucky:', error.message);
+                }
+            }
+        } catch (error) {
+            console.error('❌ Erreur lors de la récupération des données du panneau d\'information:', error.message);
+            return res.status(500).json({ error: 'Erreur lors de la récupération des données' });
         }
     });
 
