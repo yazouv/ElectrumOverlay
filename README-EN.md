@@ -11,6 +11,7 @@ A complete overlay system for Twitch with EventSub integration, real-time animat
 - [⚙️ Configuration](#️-configuration)
 - [🔧 Twitch Configuration](#-twitch-configuration)
 - [🌐 Webhook Tunnel (ngrok)](#-webhook-tunnel-ngrok)
+- [🚛 TruckyApp Integration](#-truckyapp-integration)
 - [🏃‍♂️ Launch](#️-launch)
 - [📹 OBS Overlays](#-obs-overlays)
 - [🧪 Tests](#-tests)
@@ -49,7 +50,7 @@ A complete overlay system for Twitch with EventSub integration, real-time animat
 - **Node.js** 18+ ([Download](https://nodejs.org/))
 - **npm** (included with Node.js)
 - **Twitch account**
-- **ngrok** for webhooks ([Download](https://ngrok.com/))
+- **ngrok** (integrated) or optional manual installation ([Download](https://ngrok.com/))
 
 <!-- Blue info box -->
 <div style="border-left: 4px solid #007bff; padding-left: 10px; margin-bottom: 20px;">
@@ -185,37 +186,125 @@ Don't forget to configure conditions for certain events in `src/config/config.js
 
 ## 🌐 Webhook Tunnel (ngrok)
 
-EventSub webhooks require a public HTTPS URL. Use ngrok:
+EventSub webhooks require a public HTTPS URL. **ngrok is integrated and enabled by default** in ElectrumOverlay:
 
-### 1. 📥 Install ngrok
+### 🔄 Automatic mode (default)
+The system automatically starts ngrok and configures the webhook URL. In `src/config/config.js`:
+```javascript
+"ngrok": {
+    "ENABLED": true,  // ngrok enabled by default
+},
+```
+
+**Advantages:**
+- ✅ Automatic configuration
+- ✅ No need to manually manage ngrok
+- ✅ Webhook URL updated automatically
+
+### ⚙️ Manual mode (optional)
+If you prefer to manage ngrok manually, disable automatic mode:
+
+#### 1. 🔧 Disable automatic ngrok
+In `src/config/config.js`:
+```javascript
+"ngrok": {
+    "ENABLED": false,  // Disable automatic ngrok
+},
+```
+
+#### 2. 📥 Install ngrok
 - Download from [ngrok.com](https://ngrok.com/)
 - Or via npm: `npm install -g ngrok`
 
-### 2. 🚀 Start the tunnel
+#### 3. 🚀 Start the tunnel
 ```bash
 # In a separate terminal
 ngrok http 8080
 ```
 
-### 3. 📋 Copy the URL
+#### 4. 📋 Copy the URL
 Ngrok will display something like:
 ```
 Forwarding  https://abcdefgijkl.ngrok-free.app -> http://localhost:8080
 ```
 
-### 4. ⚙️ Configure the webhook URL
+#### 5. ⚙️ Configure the webhook URL
 In `src/config/config.js`:
 ```javascript
 WEBHOOK_URL: "https://abcdefgijkl.ngrok-free.app/eventsub"
 ```
 
-### 5. ⚠️ Important note
+#### 6. ⚠️ Important note
 - The ngrok URL changes with each restart (free version)
 - Remember to update the configuration after each restart
+
+## 🚛 TruckyApp Integration
+
+ElectrumOverlay includes **TruckyApp integration enabled by default** for trucking simulation streamers:
+
+### 🔄 Enabled mode (default)
+TruckyApp integration automatically fetches your game statistics. In `src/config/config.js`:
+```javascript
+"trucky": {
+    "enable": true,                    // TruckyApp enabled by default
+    "USER_ID": "90694",               // Replace with your Trucky user ID
+},
+```
+
+**Features:**
+- ✅ Automatic user data retrieval
+- ✅ Display of last completed job
+- ✅ Company statistics (if applicable)
+- ✅ Seamless integration with overlays
+
+### ⚙️ TruckyApp Configuration
+
+#### 1. 🆔 Get your TruckyApp User ID
+1. Go to [TruckyApp](https://truckyapp.com/)
+2. Log in to your account
+3. Go to your profile
+4. The user ID is found in the URL: `https://truckyapp.com/user/[YOUR_ID]`
+
+#### 2. 🔧 Configure the ID
+In `src/config/config.js`, replace `"90694"` with your ID:
+```javascript
+"trucky": {
+    "enable": true,
+    "USER_ID": "YOUR_TRUCKY_ID",
+},
+```
+
+### 🚫 Disable TruckyApp (optional)
+If you don't play trucking simulation games, you can disable this feature:
+
+In `src/config/config.js`:
+```javascript
+"trucky": {
+    "enable": false,              // Disable TruckyApp
+    "USER_ID": "90694",
+},
+```
+
+**Note:** Even when disabled, this configuration doesn't affect other system functionalities.
 
 ## 🏃‍♂️ Launch
 
 ### 🚀 Complete startup
+
+The system automatically starts ngrok by default. If ngrok is enabled:
+
+1. **Start the server**:
+```bash
+npm start
+```
+
+2. **Access the overlays**:
+   - Main: `http://localhost:8080`
+   - Starting: `http://localhost:8080/starting.html`
+   - Ending: `http://localhost:8080/ending.html`
+   - Pause: `http://localhost:8080/pause.html`
+
+If you have disabled ngrok (manual mode):
 
 1. **Start ngrok** (terminal 1):
 ```bash

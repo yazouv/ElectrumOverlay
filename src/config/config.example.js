@@ -13,9 +13,9 @@ module.exports = {
         "CLIENT_SECRET": "YOUR_CLIENT_SECRET",
         "BROADCASTER_ID": "YOUR_BROADCASTER_ID",
         "USER_ACCESS_TOKEN": "YOUR_USER_ACCESS_TOKEN",
-        "WEBHOOK_URL": "YOUR_WEBHOOK_URL",
+        "WEBHOOK_URL": "YOUR_WEBHOOK_URL", // NE PAS MODIFIER SI VOUS UTILISEZ NGROK EN AUTOMATIQUE (par défaut)
         "WEBHOOK_SECRET": "YOUR_WEBHOOK_SECRET",
-        "REDIRECT_URI": "http://localhost:8080/auth-callback",
+        "REDIRECT_URI": "http://localhost:8080/auth-callback", // NE PAS MODIFIER
         "SCOPES": [
             "user:read:chat",
             "user:bot",
@@ -29,6 +29,9 @@ module.exports = {
     "trucky": {
         "enable": true,
         "USER_ID": "90694", // Remplacez par votre ID utilisateur Trucky
+    },
+    "ngrok": {
+        "ENABLED": true,
     },
     "features": {
         "AUTO_SUBSCRIBE_EVENTS": true,

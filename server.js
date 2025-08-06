@@ -203,6 +203,16 @@ class TwitchOverlayServer {
      * Démarrer le serveur
      */
     async start() {
+        // démarrer ngrok si configuré
+        var WEBHOOK_URL;
+        if (config.ngrok.ENABLED) {
+            const NgrokManager = require('./src/services/NgrokManager');
+            this.ngrokManager = new NgrokManager();
+            WEBHOOK_URL = await this.ngrokManager.start();
+        } else {
+            WEBHOOK_URL = config.twitch.WEBHOOK_URL;
+        }
+
         this.app.listen(this.port, async () => {
             console.log('🚀 ================================');
             console.log('🎮 Twitch Overlay Server v1.0');
@@ -211,7 +221,7 @@ class TwitchOverlayServer {
             console.log(`📊 Stats: http://localhost:${this.port}/stream-stats-html`);
             console.log(`🔐 Auth: http://localhost:${this.port}/auth-url`);
             console.log(`📋 API: http://localhost:${this.port}/status`);
-            console.log(`🔌 Webhook: ${config.twitch.WEBHOOK_URL}`);
+            console.log(`🔌 Webhook: ${WEBHOOK_URL}`);
             console.log('');
             console.log(`🎯 Chaîne: ID ${this.eventSubManager.currentBroadcasterId}`);
             console.log('🟢 Serveur prêt ! Appuyez sur Ctrl+C pour arrêter.');
@@ -221,7 +231,7 @@ class TwitchOverlayServer {
             this.startHeartbeat();
 
             // Initialisation des services Twitch
-            await this.initializeTwitchServices();
+            await this.initializeTwitchServices(WEBHOOK_URL);
         });
     }
 
@@ -237,7 +247,7 @@ class TwitchOverlayServer {
     /**
      * Initialiser les services Twitch
      */
-    async initializeTwitchServices() {
+    async initializeTwitchServices(WEBHOOK_URL) {
         setTimeout(async () => {
             try {
                 console.log('🔍 Vérification du User Access Token...');
@@ -246,7 +256,8 @@ class TwitchOverlayServer {
 
                 console.log('⚡ Configuration des abonnements EventSub...');
                 await this.eventSubManager.setupSubscriptionsForChannel(
-                    this.eventSubManager.currentBroadcasterId
+                    this.eventSubManager.currentBroadcasterId,
+                    WEBHOOK_URL
                 );
 
                 console.log('');

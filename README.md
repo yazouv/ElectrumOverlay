@@ -11,6 +11,7 @@ Un système complet d'overlay pour Twitch avec intégration EventSub, animations
 - [⚙️ Configuration](#️-configuration)
 - [🔧 Configuration Twitch](#-configuration-twitch)
 - [🌐 Tunnel Webhook (ngrok)](#-tunnel-webhook-ngrok)
+- [🚛 Intégration TruckyApp](#-intégration-truckyapp)
 - [🏃‍♂️ Lancement](#️-lancement)
 - [📹 Overlays OBS](#-overlays-obs)
 - [🧪 Tests](#-tests)
@@ -48,7 +49,7 @@ Un système complet d'overlay pour Twitch avec intégration EventSub, animations
 - **Node.js** 18+ ([Télécharger](https://nodejs.org/))
 - **npm** (inclus avec Node.js)
 - **Compte Twitch**
-- **ngrok** pour les webhooks ([Télécharger](https://ngrok.com/))
+- **ngrok** (intégré) ou installation manuelle optionnelle ([Télécharger](https://ngrok.com/))
 
 <!-- mettre un info avec un trait bleu -->
 <div style="border-left: 4px solid #007bff; padding-left: 10px; margin-bottom: 20px;">
@@ -181,37 +182,125 @@ N'oubliez pas de configurer les conditions pour certains événements dans `src/
 
 ## 🌐 Tunnel Webhook (ngrok)
 
-Les webhooks EventSub nécessitent une URL HTTPS publique. Utilisez ngrok :
+Les webhooks EventSub nécessitent une URL HTTPS publique. **ngrok est intégré et activé par défaut** dans ElectrumOverlay :
 
-### 1. 📥 Installer ngrok
+### 🔄 Mode automatique (par défaut)
+Le système démarre automatiquement ngrok et configure l'URL webhook. Dans `src/config/config.js` :
+```javascript
+"ngrok": {
+    "ENABLED": true,  // ngrok activé par défaut
+},
+```
+
+**Avantages :**
+- ✅ Configuration automatique
+- ✅ Pas besoin de gérer manuellement ngrok
+- ✅ URL webhook mise à jour automatiquement
+
+### ⚙️ Mode manuel (optionnel)
+Si vous préférez gérer ngrok manuellement, désactivez le mode automatique :
+
+#### 1. 🔧 Désactiver ngrok automatique
+Dans `src/config/config.js` :
+```javascript
+"ngrok": {
+    "ENABLED": false,  // Désactiver ngrok automatique
+},
+```
+
+#### 2. 📥 Installer ngrok
 - Téléchargez depuis [ngrok.com](https://ngrok.com/)
 - Ou via npm : `npm install -g ngrok`
 
-### 2. 🚀 Démarrer le tunnel
+#### 3. 🚀 Démarrer le tunnel
 ```bash
 # Dans un terminal séparé
 ngrok http 8080
 ```
 
-### 3. 📋 Copier l'URL
+#### 4. 📋 Copier l'URL
 Ngrok va afficher quelque chose comme :
 ```
 Forwarding  https://abcdefgijkl.ngrok-free.app -> http://localhost:8080
 ```
 
-### 4. ⚙️ Configurer l'URL webhook
+#### 5. ⚙️ Configurer l'URL webhook
 Dans `src/config/config.js` :
 ```javascript
 WEBHOOK_URL: "https://abcdefgijkl.ngrok-free.app/eventsub"
 ```
 
-### 5. ⚠️ Note importante
+#### 6. ⚠️ Note importante
 - L'URL ngrok change à chaque redémarrage (version gratuite)
 - Pensez à mettre à jour la configuration après chaque redémarrage
+
+## 🚛 Intégration TruckyApp
+
+ElectrumOverlay inclut une **intégration TruckyApp activée par défaut** pour les streameurs de simulation de camion :
+
+### 🔄 Mode activé (par défaut)
+L'intégration TruckyApp récupère automatiquement vos statistiques de jeu. Dans `src/config/config.js` :
+```javascript
+"trucky": {
+    "enable": true,                    // TruckyApp activé par défaut
+    "USER_ID": "90694",               // Remplacez par votre ID utilisateur Trucky
+},
+```
+
+**Fonctionnalités :**
+- ✅ Récupération automatique des données utilisateur
+- ✅ Affichage du dernier job effectué
+- ✅ Statistiques de compagnie (si applicable)
+- ✅ Intégration seamless avec les overlays
+
+### ⚙️ Configuration TruckyApp
+
+#### 1. 🆔 Obtenir votre User ID TruckyApp
+1. Allez sur [TruckyApp](https://truckyapp.com/)
+2. Connectez-vous à votre compte
+3. Allez dans votre profil
+4. L'ID utilisateur se trouve dans l'URL : `https://truckyapp.com/user/[VOTRE_ID]`
+
+#### 2. 🔧 Configurer l'ID
+Dans `src/config/config.js`, remplacez `"90694"` par votre ID :
+```javascript
+"trucky": {
+    "enable": true,
+    "USER_ID": "VOTRE_ID_TRUCKY",
+},
+```
+
+### 🚫 Désactiver TruckyApp (optionnel)
+Si vous ne jouez pas aux jeux de simulation de camion, vous pouvez désactiver cette fonctionnalité :
+
+Dans `src/config/config.js` :
+```javascript
+"trucky": {
+    "enable": false,              // Désactiver TruckyApp
+    "USER_ID": "90694",
+},
+```
+
+**Note :** Même désactivée, cette configuration n'affecte pas les autres fonctionnalités du système.
 
 ## 🏃‍♂️ Lancement
 
 ### 🚀 Démarrage complet
+
+Le système démarre automatiquement ngrok par défaut. Si ngrok est activé :
+
+1. **Démarrer le serveur** :
+```bash
+npm start
+```
+
+2. **Accéder aux overlays** :
+   - Principal : `http://localhost:8080`
+   - Démarrage : `http://localhost:8080/starting.html`
+   - Fin : `http://localhost:8080/ending.html`
+   - Pause : `http://localhost:8080/pause.html`
+
+Si vous avez désactivé ngrok (mode manuel) :
 
 1. **Démarrer ngrok** (terminal 1) :
 ```bash

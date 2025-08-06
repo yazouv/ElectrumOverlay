@@ -15,7 +15,7 @@ class EventSubManager {
     /**
      * Créer un abonnement EventSub
      */
-    async createSubscription(type, condition, version = '1') {
+    async createSubscription(type, condition, version = '1', webhookUrl) {
         const accessToken = await this.auth.getAppAccessToken();
         console.log(`🔧 Tentative de création d'abonnement pour ${type}...`);
 
@@ -28,13 +28,14 @@ class EventSubManager {
         }
 
         try {
+            console.log(`📡 Création de l'abonnement pour ${type} avec le callback : ${webhookUrl}`);
             const response = await axios.post('https://api.twitch.tv/helix/eventsub/subscriptions', {
                 type: type,
                 version: version,
                 condition: condition,
                 transport: {
                     method: 'webhook',
-                    callback: config.twitch.WEBHOOK_URL,
+                    callback: webhookUrl,
                     secret: config.twitch.WEBHOOK_SECRET
                 }
             }, {
@@ -96,7 +97,7 @@ class EventSubManager {
     /**
      * Configurer les abonnements pour une chaîne spécifique
      */
-    async setupSubscriptionsForChannel(broadcasterId) {
+    async setupSubscriptionsForChannel(broadcasterId, webhookUrl) {
         console.log(`🔧 Configuration des abonnements EventSub pour la chaîne ID: ${broadcasterId}`);
         this.currentBroadcasterId = broadcasterId;
 
@@ -136,7 +137,7 @@ class EventSubManager {
             for (const sub of subscriptionsToCreate) {
                 try {
                     console.log(`🎯 Création d'abonnement aux ${sub.description}...`);
-                    await this.createSubscription(sub.type, sub.condition, sub.version);
+                    await this.createSubscription(sub.type, sub.condition, sub.version, webhookUrl);
                     successCount++;
                 } catch (error) {
                     console.warn(`⚠️  Échec pour ${sub.type}: ${error.response?.data?.message || error.message}`);
