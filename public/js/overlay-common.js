@@ -92,6 +92,48 @@ function applyThemeFromConfig() {
     }
 }
 
+function applyBottomBarContentFromConfig() {
+    const cfg = getOverlayConfig();
+    const content = cfg.panels?.bottom?.content;
+    if (!content) return;
+
+    const infoTexts = Array.isArray(content.infoTexts) ? content.infoTexts : null;
+    const scrollingText = (typeof content.scrollingText === 'string') ? content.scrollingText : null;
+
+    document.querySelectorAll('.bottom-bar').forEach(bar => {
+        // 1) Texte défilant (index.html)
+        if (scrollingText) {
+            const scrollEl = bar.querySelector('.scroll-content');
+            if (scrollEl) {
+                scrollEl.textContent = scrollingText;
+            }
+        }
+
+        // 2) Items info (index.html: .info-item) – on remplit les textes dans l'ordre
+        if (infoTexts && infoTexts.length > 0) {
+            const infoItemTextEls = bar.querySelectorAll('.info-item .info-text');
+            if (infoItemTextEls && infoItemTextEls.length > 0) {
+                infoItemTextEls.forEach((el, idx) => {
+                    if (typeof infoTexts[idx] === 'string') {
+                        el.textContent = infoTexts[idx];
+                    }
+                });
+                return;
+            }
+
+            // 3) Items info (starting/ending.html: .bottom-info > .info-text)
+            const directTextEls = bar.querySelectorAll('.bottom-info > .info-text, .bottom-info > span.info-text, .bottom-info > div.info-text');
+            if (directTextEls && directTextEls.length > 0) {
+                directTextEls.forEach((el, idx) => {
+                    if (typeof infoTexts[idx] === 'string') {
+                        el.textContent = infoTexts[idx];
+                    }
+                });
+            }
+        }
+    });
+}
+
 function shouldLog(level) {
     const cfg = getOverlayConfig();
     const dbg = cfg.debug || {};
@@ -506,6 +548,9 @@ function initCommonOverlay() {
 
     // Thème (couleurs) + variables CSS
     applyThemeFromConfig();
+
+    // Contenu bottom bar (textes centralisés)
+    applyBottomBarContentFromConfig();
 
     // Panneaux statiques (starting/ending) : possibilité de les masquer via config
     if (cfg.panels?.bottom?.enabled === false) {

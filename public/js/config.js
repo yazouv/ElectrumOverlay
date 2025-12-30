@@ -117,7 +117,18 @@ const OVERLAY_CONFIG = {
             enabled: true,
             interval: 180000,    // 3 minutes
             duration: 20000,     // 20 secondes
-            firstDelay: 10000    // Première popup après 10s
+            firstDelay: 10000,   // Première popup après 10s
+
+            // Contenu de la bottom bar (centralisé)
+            // Remarque: l'ordre correspond à l'ordre d'affichage dans les HTML.
+            content: {
+                infoTexts: [
+                    'twitch.tv/arkyan_',
+                    'discord.electrumvtc.fr',
+                    'electrumvtc.fr'
+                ],
+                scrollingText: '🚛 ELECTRUM VTC recrute ! • Convois organisés • Ambiance conviviale • !electrum pour plus d\'infos • discord.electrumvtc.fr • Rejoignez-nous ! ⚡'
+            }
         }
     },
 
