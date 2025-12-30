@@ -12,7 +12,7 @@ const OVERLAY_CONFIG = {
 
     // ========== TWITCH ==========
     twitch: {
-        broadcasterId: "197983290", // Remplacez par votre ID de diffuseur (User ID)
+        broadcasterId: "437020746", // Remplacez par votre ID de diffuseur (User ID)
     },
 
     // ========== ALERTES ==========

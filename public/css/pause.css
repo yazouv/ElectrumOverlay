@@ -6,8 +6,8 @@
 /* Animations spécifiques au titre de pause */
 .pause-title {
     animation: pausePulse 2s ease-in-out infinite, gradientShift 4s ease infinite, textGlow 2s ease-in-out infinite alternate;
-    color: #0b55f5;
-    text-shadow: 0 0 20px #0b42f5, 0 0 40px #0bd2f5;
+    color: #8b45f6;
+    text-shadow: 0 0 20px #7c3aed, 0 0 40px #a855f7;
 }
 
 .pause-subtitle {
@@ -58,27 +58,27 @@
     top: 30px;
     right: 30px;
     background: rgba(0, 0, 0, 0.8);
-    border: 2px solid #3b82f6;
+    border: 2px solid #8b45f6;
     border-radius: 15px;
     padding: 15px;
     text-align: center;
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 20px rgba(139, 69, 246, 0.3);
     animation: pauseIndicatorPulse 2s ease-in-out infinite;
 }
 
 .pause-icon {
     font-size: 2em;
-    color: #3b82f6;
+    color: #8b45f6;
     margin-bottom: 5px;
     animation: pauseIconRotate 4s linear infinite;
 }
 
 @keyframes pauseIndicatorPulse {
     0%, 100% {
-        box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 0 30px rgba(139, 69, 246, 0.3);
     }
     50% {
-        box-shadow: 0 0 50px rgba(59, 130, 246, 0.7);
+        box-shadow: 0 0 50px rgba(139, 69, 246, 0.7);
     }
 }
 
@@ -100,7 +100,7 @@
 .pulse-dot {
     width: 8px;
     height: 8px;
-    background: #3b82f6;
+    background: #8b45f6;
     border-radius: 50%;
     animation: pulseDots 1.5s ease-in-out infinite;
 }
@@ -136,7 +136,7 @@
     left: -20px;
     right: -20px;
     bottom: -20px;
-    border: 2px solid #3b82f6;
+    border: 2px solid #8b45f6;
     border-radius: 50%;
     animation: logoPulseRing 2s ease-out infinite;
     opacity: 0;
@@ -217,7 +217,7 @@
 
 .pause-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #2a79f8, #3b82f6);
+    background: linear-gradient(90deg, #8b45f6, #7c3aed, #8b45f6);
     border-radius: 3px;
     animation: pauseProgressAnimation 3s ease-in-out infinite;
     width: 0%;
@@ -259,13 +259,13 @@
     top: 30px;
     left: 30px;
     background: rgba(0, 0, 0, 0.8);
-    border: 2px solid #3b82f6;
+    border: 2px solid #8b45f6;
     border-radius: 10px;
     padding: 10px 15px;
-    color: #3b82f6;
+    color: #8b45f6;
     font-family: 'Inter', monospace;
     font-weight: 600;
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 20px rgba(139, 69, 246, 0.3);
     animation: clockGlow 3s ease-in-out infinite;
 }
 
@@ -275,10 +275,10 @@
 
 @keyframes clockGlow {
     0%, 100% {
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 0 20px rgba(139, 69, 246, 0.3);
     }
     50% {
-        box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
+        box-shadow: 0 0 30px rgba(139, 69, 246, 0.6);
     }
 }
 

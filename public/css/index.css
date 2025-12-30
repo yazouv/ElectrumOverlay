@@ -95,7 +95,7 @@ body {
 }
 
 .panel-title {
-    color: #60a5fa;
+    color: #a855f7;
     font-size: 1.6vh;
     font-weight: 700;
     margin-bottom: 1.5vh;
@@ -167,7 +167,7 @@ body {
 .info-icon {
     width: 3.5vh;
     height: 3.5vh;
-    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+    background: linear-gradient(135deg, #8b45f6 0%, #a855f7 100%);
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -187,17 +187,17 @@ body {
     overflow: hidden;
     white-space: nowrap;
     position: relative;
-    background: rgba(59, 130, 246, 0.1);
+    background: rgba(139, 69, 246, 0.1);
     padding: 1.5vh 2vw;
     border-radius: 10px;
     margin-left: 2vw;
-    border: 1px solid #3b82f6;
+    border: 1px solid #8b45f6;
 }
 
 .scroll-content {
     display: inline-block;
     animation: scroll 30s linear infinite;
-    color: #60a5fa;
+    color: #a855f7;
     font-weight: 600;
     font-size: 1.4vh;
 }

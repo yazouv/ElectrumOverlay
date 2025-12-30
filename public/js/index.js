@@ -94,9 +94,9 @@ function seperateThousands(value) {
 // Initialisation automatique quand le DOM est prêt
 document.addEventListener('DOMContentLoaded', function () {
     // Première popup après 5 secondes puis toutes les 5 minutes
-    setTimeout(showInfoPanel, 30000);
-    setInterval(showInfoPanel, CONFIG.panelInterval);
+    //setTimeout(showInfoPanel, 30000);
+    //setInterval(showInfoPanel, CONFIG.panelInterval);
 
-    setTimeout(showBottomBar, 10000);
-    setInterval(showBottomBar, CONFIG.bottomInterval);
+    //setTimeout(showBottomBar, 10000);
+    //setInterval(showBottomBar, CONFIG.bottomInterval);
 });

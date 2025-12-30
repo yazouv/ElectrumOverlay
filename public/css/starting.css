@@ -80,7 +80,7 @@ p {
 /* Animation de typing */
 .typing-text {
     overflow: hidden;
-    border-right: 3px solid #60a5fa;
+    border-right: 3px solid #a855f7;
     white-space: nowrap;
     animation: typing 2s steps(40, end) 1s both, blink 1s infinite;
     animation-iteration-count: infinite;
@@ -107,7 +107,7 @@ p {
 
     51%,
     100% {
-        border-color: #60a5fa;
+        border-color: #a855f7;
     }
 }
 
@@ -136,7 +136,7 @@ p {
     bottom: 0;
     left: 0;
     height: 4px;
-    background: linear-gradient(90deg, #60a5fa, #3b82f6, #1d4ed8);
+    background: linear-gradient(90deg, #a855f7, #8b45f6, #7c3aed);
     animation: progressLoad 4s ease-in-out infinite;
 }
 
@@ -149,7 +149,7 @@ p {
     background: rgba(30, 41, 59, 0.9);
     padding: 15px 30px;
     border-radius: 50px;
-    border: 2px solid #60a5fa;
+    border: 2px solid #a855f7;
     z-index: 10;
 }
 
@@ -163,7 +163,7 @@ p {
 .dot {
     width: 8px;
     height: 8px;
-    background: #60a5fa;
+    background: #a855f7;
     border-radius: 50%;
     animation: dotPulse 1.5s infinite;
 }
@@ -202,7 +202,7 @@ p {
     background: rgba(30, 41, 59, 0.9);
     padding: 10px 20px;
     border-radius: 25px;
-    border: 2px solid #60a5fa;
+    border: 2px solid #a855f7;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -210,12 +210,12 @@ p {
 }
 
 .viewer-count {
-    color: #60a5fa;
+    color: #a855f7;
     font-weight: bold;
     font-size: 1.2em;
 }
 
 .viewer-icon {
-    color: #60a5fa;
+    color: #a855f7;
     animation: iconPulse 2s ease-in-out infinite;
 }
