@@ -5,28 +5,51 @@
 
 // Code spécifique à ending.html
 
-function getStreamStats() {
-    document.addEventListener('DOMContentLoaded', () => {
-        fetch('/stream-stats')
-            .then(response => response.json())
-            .then(data => {
-                const streamTimeMs = data.streamDurationMs || 0;
-                const streamTimeSec = Math.floor(streamTimeMs / 1000);
-                const streamTimeMin = Math.floor(streamTimeSec / 60);
-                const streamTimeHours = Math.floor(streamTimeMin / 60);
-                const streamTimeText = `${streamTimeHours}h ${streamTimeMin % 60}m ${streamTimeSec % 60}s`;
-                document.getElementById('streamDurationText').innerText = streamTimeText;
-                document.getElementById('totalMessages').innerText = data.chatMessages;
-                document.getElementById('newFollowers').innerText = data.follows;
-                document.getElementById('newSubs').innerText = data.subscribers;
-            })
-            .catch(error => {
-                console.error('❌ Erreur lors de la récupération des statistiques du stream:', error);
-            });
-    });
+function getOverlayConfig() {
+    if (typeof globalThis !== 'undefined' && globalThis.OVERLAY_CONFIG) {
+        return globalThis.OVERLAY_CONFIG;
+    }
+    return {};
 }
 
-setInterval(() => {
-    getStreamStats();
-}, 30000);
-getStreamStats(); // Récupérer les stats du serveur
+function renderStreamStats(data) {
+    const streamTimeMs = data.streamDurationMs || 0;
+    const streamTimeSec = Math.floor(streamTimeMs / 1000);
+    const streamTimeMin = Math.floor(streamTimeSec / 60);
+    const streamTimeHours = Math.floor(streamTimeMin / 60);
+    const streamTimeText = `${streamTimeHours}h ${streamTimeMin % 60}m ${streamTimeSec % 60}s`;
+    const streamDurationEl = document.getElementById('streamDurationText');
+    const totalMessagesEl = document.getElementById('totalMessages');
+    const newFollowersEl = document.getElementById('newFollowers');
+    const newSubsEl = document.getElementById('newSubs');
+    if (streamDurationEl) streamDurationEl.innerText = streamTimeText;
+    if (totalMessagesEl) totalMessagesEl.innerText = data.chatMessages ?? 0;
+    if (newFollowersEl) newFollowersEl.innerText = data.follows ?? 0;
+    if (newSubsEl) newSubsEl.innerText = data.subscribers ?? 0;
+}
+
+async function fetchStreamStats() {
+    const cfg = getOverlayConfig();
+    try {
+        const response = await fetch('/stream-stats');
+        const data = await response.json();
+        renderStreamStats(data);
+    } catch (error) {
+        console.error('❌ Erreur lors de la récupération des statistiques du stream:', error);
+        if (cfg.stats?.simulateData) {
+            renderStreamStats({
+                streamDurationMs: Math.floor(Math.random() * 3 * 60 * 60 * 1000),
+                chatMessages: Math.floor(Math.random() * 500),
+                follows: Math.floor(Math.random() * 50),
+                subscribers: Math.floor(Math.random() * 25)
+            });
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const cfg = getOverlayConfig();
+    const interval = cfg.stats?.updateInterval ?? 30000;
+    fetchStreamStats();
+    setInterval(fetchStreamStats, interval);
+});
