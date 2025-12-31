@@ -183,8 +183,14 @@ function startElementAnimations() {
 function initializeParticleEffects() {
     const cfg = getOverlayConfig();
     if (cfg.animations?.enabled === false) return;
-    if (typeof globalThis !== 'undefined' && globalThis.__OVERLAY_COMMON_ANIMATIONS_DONE) {
-        return;
+
+    if (typeof globalThis !== 'undefined') {
+        // If common overlay animations have already been initialized elsewhere, do nothing.
+        if (globalThis.__OVERLAY_COMMON_ANIMATIONS_DONE) {
+            return;
+        }
+        // Mark animations as initialized to prevent duplicate initialization in other scripts.
+        globalThis.__OVERLAY_COMMON_ANIMATIONS_DONE = true;
     }
 
     if (typeof createStars === 'function') {
