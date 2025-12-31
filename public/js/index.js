@@ -59,7 +59,7 @@ async function showInfoPanel() {
 function updateTimer(timer) {
     if (!totalSteps || totalSteps <= 0) return;
     progress += (100 / totalSteps);
-    timer.style.background = `conic-gradient(#ef4444 ${progress}%, transparent ${progress}%)`;
+    timer.style.background = `conic-gradient(var(--timer-color, #ef4444) ${progress}%, transparent ${progress}%)`;
 
     if (progress >= 100) {
         clearInterval(timerInterval);
