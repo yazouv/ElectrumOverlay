@@ -3,6 +3,26 @@
  * Contient tous les styles partagés entre starting.html, index.html et ending.html
  */
 
+:root {
+    --theme-primary: #a855f7;
+    --theme-secondary: #8b45f6;
+    --theme-accent: #1e293b;
+    --theme-primary-rgb: 168, 85, 247;
+    --theme-secondary-rgb: 139, 69, 246;
+    --theme-accent-rgb: 30, 41, 59;
+    --theme-bg: var(--theme-accent);
+    --theme-bg-rgb: var(--theme-accent-rgb);
+    --theme-surface: #1e293b;
+    --theme-surface-rgb: 30, 41, 59;
+    --theme-text: #e2e8f0;
+    --theme-muted-text: #94a3b8;
+    --theme-panel-bg: #0f172a;
+    --theme-panel-bg-rgb: 15, 23, 42;
+    --theme-panel-border: var(--theme-secondary);
+    --chat-default-color: #3b82f6;
+    --chat-badge-size: 2vh;
+}
+
 /* ========== STYLES DE BASE ========== */
 body {
     margin: 0;
@@ -10,9 +30,9 @@ body {
     width: 100vw;
     height: 100vh;
     overflow: hidden;
-    background: #1e293b;
+    background: var(--theme-bg, var(--theme-accent, #1e293b));
     position: relative;
-    color: #e2e8f0;
+    color: var(--theme-text, #e2e8f0);
 }
 
 /* Police personnalisée */
@@ -57,12 +77,12 @@ body {
 .alert-icon {
     font-size: 5vh;
     margin-bottom: 2vh;
-    color: #60a5fa;
+    color: var(--theme-primary, #a855f7);
     animation: bounce 0.5s infinite alternate;
 }
 
 .alert-title {
-    color: #60a5fa;
+    color: var(--theme-primary, #a855f7);
     font-size: 2.5vh;
     font-weight: 800;
     margin-bottom: 1vh;
@@ -126,10 +146,10 @@ body {
 
 @keyframes textGlow {
     0% {
-        text-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
+        text-shadow: 0 0 10px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.5);
     }
     100% {
-        text-shadow: 0 0 20px rgba(96, 165, 250, 0.8), 0 0 30px rgba(96, 165, 250, 0.6);
+        text-shadow: 0 0 20px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.8), 0 0 30px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.6);
     }
 }
 
@@ -223,17 +243,17 @@ body {
 @keyframes neonPulse {
     0% {
         box-shadow:
-            0 0 5px rgba(96, 165, 250, 0.5),
-            0 0 10px rgba(96, 165, 250, 0.3),
-            0 0 15px rgba(96, 165, 250, 0.2),
-            inset 0 0 5px rgba(96, 165, 250, 0.1);
+            0 0 5px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.5),
+            0 0 10px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.3),
+            0 0 15px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.2),
+            inset 0 0 5px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.1);
     }
     100% {
         box-shadow:
-            0 0 10px rgba(96, 165, 250, 0.8),
-            0 0 20px rgba(96, 165, 250, 0.6),
-            0 0 30px rgba(96, 165, 250, 0.4),
-            inset 0 0 10px rgba(96, 165, 250, 0.2);
+            0 0 10px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.8),
+            0 0 20px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.6),
+            0 0 30px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.4),
+            inset 0 0 10px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.2);
     }
 }
 
@@ -270,16 +290,16 @@ body {
     right: 2vw;
     width: 15vw;
     height: 40vh;
-    background: linear-gradient(135deg, #1e293b00 0%, #334155 100%);
+    background: linear-gradient(135deg, rgba(var(--theme-panel-bg-rgb, 15, 23, 42), 0) 0%, rgba(var(--theme-panel-bg-rgb, 15, 23, 42), 0.92) 100%);
     border-radius: 15px;
     padding: 2vh 1.5vw;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    border: 2px solid #475569;
+    border: 2px solid var(--theme-panel-border, var(--theme-secondary, #8b45f6));
     z-index: 100;
 }
 
 .chat-header {
-    color: #88b9f5;
+    color: var(--theme-primary, #a855f7);
     font-size: 1.4vh;
     font-weight: 700;
     margin-bottom: 1.5vh;
@@ -287,7 +307,7 @@ body {
     letter-spacing: 1px;
     align-items: center;
     gap: 0.8vw;
-    border-bottom: 2px solid #475569;
+    border-bottom: 2px solid var(--theme-panel-border, var(--theme-secondary, #8b45f6));
     padding-bottom: 1vh;
     text-align: center;
 }
@@ -296,7 +316,7 @@ body {
     height: 30vh;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #475569 transparent;
+    scrollbar-color: var(--theme-secondary, #8b45f6) transparent;
     overflow: hidden;
 }
 
@@ -309,28 +329,28 @@ body {
 }
 
 .chat-container::-webkit-scrollbar-thumb {
-    background: #475569;
+    background: var(--theme-secondary, #8b45f6);
     border-radius: 3px;
 }
 
 .chat-message {
-    background: rgba(59, 130, 246, 0.1);
+    background: rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.15);
     padding: 1vh 1vw;
     border-radius: 10px;
     margin-bottom: 1vh;
-    border-left: 3px solid #3b82f6;
+    border-left: 3px solid var(--theme-secondary, #8b45f6);
     animation: slideInChat 0.3s ease-out;
 }
 
 .chat-badge {
-    width: 2vh;
-    height: 2vh;
+    width: var(--chat-badge-size, 2vh);
+    height: var(--chat-badge-size, 2vh);
     margin-right: 3px;
     vertical-align: middle;
 }
 
 .chat-username {
-    color: #60a5fa;
+    color: var(--chat-default-color, #a855f7);
     font-weight: 600;
     font-size: 1.2vh;
     margin-bottom: 0.3vh;
@@ -366,7 +386,7 @@ body {
 .info-icon {
     margin-right: 10px;
     font-size: 2em;
-    color: #60a5fa;
+    color: var(--theme-primary, #a855f7);
     animation: iconPulse 2s ease-in-out infinite;
 }
 
@@ -380,7 +400,7 @@ body {
     position: absolute;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.2), rgb(30, 41, 59));
+    background: radial-gradient(circle, rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.2), rgb(var(--theme-bg-rgb, 30, 41, 59)));
     animation: pulse 4s infinite alternate;
     z-index: 0;
 }
@@ -389,7 +409,7 @@ body {
     position: absolute;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle at 50% 50%, rgba(96, 165, 250, 0.05), transparent 70%);
+    background: radial-gradient(circle at 50% 50%, rgba(var(--theme-primary-rgb, 168, 85, 247), 0.05), transparent 70%);
     animation: breathe 6s ease-in-out infinite;
     z-index: 0;
 }
@@ -421,7 +441,7 @@ body {
     position: absolute;
     width: 4px;
     height: 4px;
-    background: rgba(96, 165, 250, 0.6);
+    background: rgba(var(--theme-primary-rgb, 168, 85, 247), 0.6);
     border-radius: 50%;
     animation: floatUp 8s infinite linear;
 }
@@ -470,7 +490,7 @@ body {
 
 .circuit-line {
     position: absolute;
-    background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.5), transparent);
+    background: linear-gradient(90deg, transparent, rgba(var(--theme-primary-rgb, 168, 85, 247), 0.5), transparent);
     animation: circuitFlow 8s linear infinite;
 }
 
@@ -487,10 +507,10 @@ body {
 /* ========== EFFET NÉON ========== */
 .neon-border {
     box-shadow:
-        0 0 5px rgba(96, 165, 250, 0.5),
-        0 0 10px rgba(96, 165, 250, 0.3),
-        0 0 15px rgba(96, 165, 250, 0.2),
-        inset 0 0 5px rgba(96, 165, 250, 0.1);
+        0 0 5px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.5),
+        0 0 10px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.3),
+        0 0 15px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.2),
+        inset 0 0 5px rgba(var(--theme-primary-rgb, 168, 85, 247), 0.1);
     animation: neonPulse 2s ease-in-out infinite alternate;
 }
 
@@ -505,7 +525,7 @@ body {
     position: absolute;
     width: 100px;
     height: 100px;
-    border: 2px solid rgba(96, 165, 250, 0.3);
+    border: 2px solid rgba(var(--theme-primary-rgb, 168, 85, 247), 0.3);
     border-radius: 50%;
     animation: soundWave 2s infinite;
 }
@@ -514,7 +534,7 @@ body {
 h1 {
     font-size: 4em;
     margin-bottom: 0.5em;
-    background: linear-gradient(45deg, #60a5fa, #3b82f6, #1d4ed8, #60a5fa);
+    background: linear-gradient(45deg, var(--theme-primary, #a855f7), var(--theme-secondary, #8b45f6), var(--theme-accent, #7c3aed), var(--theme-primary, #a855f7));
     background-size: 400% 400%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;

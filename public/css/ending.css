@@ -15,7 +15,7 @@
 .particle {
     width: 6px;
     height: 6px;
-    background: rgba(59, 130, 246, 0.8);
+    background: rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.8);
 }
 
 /* Météores dorés pour ending */
@@ -23,50 +23,50 @@
     background: linear-gradient(to bottom, rgba(255, 215, 0, 0.8), transparent);
 }
 
-/* Couleur néon bleue pour ending */
+/* Couleur néon violette pour ending */
 .neon-border {
     box-shadow:
-        0 0 5px rgba(59, 130, 246, 0.5),
-        0 0 10px rgba(59, 130, 246, 0.3),
-        0 0 15px rgba(59, 130, 246, 0.2),
-        inset 0 0 5px rgba(59, 130, 246, 0.1);
-    animation: neonPulseBlue 2s ease-in-out infinite alternate;
+        0 0 5px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.5),
+        0 0 10px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.3),
+        0 0 15px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.2),
+        inset 0 0 5px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.1);
+    animation: neonPulseViolet 2s ease-in-out infinite alternate;
 }
 
-@keyframes neonPulseBlue {
+@keyframes neonPulseViolet {
     0% {
         box-shadow:
-            0 0 5px rgba(59, 130, 246, 0.5),
-            0 0 10px rgba(59, 130, 246, 0.3),
-            0 0 15px rgba(59, 130, 246, 0.2),
-            inset 0 0 5px rgba(59, 130, 246, 0.1);
+            0 0 5px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.5),
+            0 0 10px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.3),
+            0 0 15px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.2),
+            inset 0 0 5px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.1);
     }
     100% {
         box-shadow:
-            0 0 10px rgba(59, 130, 246, 0.8),
-            0 0 20px rgba(59, 130, 246, 0.6),
-            0 0 30px rgba(59, 130, 246, 0.4),
-            inset 0 0 10px rgba(59, 130, 246, 0.2);
+            0 0 10px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.8),
+            0 0 20px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.6),
+            0 0 30px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.4),
+            inset 0 0 10px rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.2);
     }
 }
 
-/* Chat avec couleur bleue pour ending */
+/* Chat avec couleur violette pour ending */
 .chat-header {
-    color: #3b82f6;
+    color: var(--theme-primary, #8b45f6);
 }
 
 .chat-username {
-    color: #3b82f6;
+    color: var(--theme-primary, #8b45f6);
 }
 
-/* Icônes bleues pour ending */
+/* Icônes violettes pour ending */
 .info-icon {
-    color: #3b82f6;
+    color: var(--theme-primary, #8b45f6);
 }
 
-/* Gradients bleus pour les titres */
+/* Gradients violets pour les titres */
 h1 {
-    background: linear-gradient(45deg, #3b82f6, #60a5fa, #93c5fd, #3b82f6);
+    background: linear-gradient(45deg, var(--theme-primary, #8b45f6), var(--theme-secondary, #a855f7), var(--theme-accent, #c084fc), var(--theme-primary, #8b45f6));
     background-size: 400% 400%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -137,14 +137,14 @@ p {
 .thanks-message {
     font-size: 1.2em;
     margin-top: 1em;
-    color: #60a5fa;
+    color: var(--theme-primary, #a855f7);
     opacity: 0;
     animation: fadeInUp 1s ease-out 1.5s both;
 }
 
 .typing-text {
     overflow: hidden;
-    border-right: 3px solid #3b82f6;
+    border-right: 3px solid var(--theme-primary, #8b45f6);
     white-space: nowrap;
     animation: typing 2s steps(40, end) 1s both, blink 1s infinite;
     animation-iteration-count: infinite;
@@ -173,7 +173,7 @@ p {
         border-color: transparent;
     }
     51%, 100% {
-        border-color: #3b82f6;
+        border-color: var(--theme-primary, #8b45f6);
     }
 }
 
@@ -183,7 +183,7 @@ p {
     background: rgba(30, 41, 59, 0.9);
     padding: 20px 30px;
     border-radius: 20px;
-    border: 2px solid #3b82f6;
+    border: 2px solid var(--theme-primary, #8b45f6);
     z-index: 10;
     margin: 0 auto auto auto; /* met une marge négative ici pour remonter */
     max-width: 400px; /* ajuste comme tu veux */
@@ -198,14 +198,14 @@ p {
 }
 
 .stat-icon {
-    color: #3b82f6;
+    color: var(--theme-primary, #8b45f6);
     margin-right: 10px;
     font-size: 1.5em;
     animation: iconPulse 2s ease-in-out infinite;
 }
 
 .stat-value {
-    color: #3b82f6;
+    color: var(--theme-primary, #8b45f6);
     font-weight: bold;
     margin-right: 5px;
 }
@@ -215,11 +215,11 @@ p {
     animation: floatUp 6s infinite linear;
 }
 
-/* Étoiles bleues scintillantes */
+/* Étoiles violettes scintillantes */
 .star {
     width: 3px;
     height: 3px;
-    background: #3b82f6;
+    background: var(--theme-primary, #8b45f6);
     animation: twinkle 2s infinite;
 }
 
@@ -234,23 +234,23 @@ p {
     }
 }
 
-/* Météores bleus */
+/* Météores violets */
 .meteor {
     width: 3px;
     height: 60px;
-    background: linear-gradient(to bottom, rgba(59, 130, 246, 0.9), transparent);
+    background: linear-gradient(to bottom, rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.9), transparent);
     animation: meteorFall 3s infinite linear;
 }
 
-/* Effet de respiration sur le fond avec couleur bleue */
+/* Effet de respiration sur le fond avec couleur violette */
 .breathing-effect {
-    background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05), transparent 70%);
+    background: radial-gradient(circle at 50% 50%, rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.05), transparent 70%);
     animation: breathe 6s ease-in-out infinite;
 }
 
-/* Lignes de circuit bleues */
+/* Lignes de circuit violettes */
 .circuit-line {
-    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), transparent);
+    background: linear-gradient(90deg, transparent, rgba(var(--theme-secondary-rgb, 139, 69, 246), 0.6), transparent);
     animation: circuitFlow 6s linear infinite;
 }
 

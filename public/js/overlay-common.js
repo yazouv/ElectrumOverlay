@@ -3,6 +3,153 @@
  * Contient toutes les fonctions partagées entre starting.html, index.html et ending.html
  */
 
+function getOverlayConfig() {
+    if (typeof globalThis !== 'undefined' && globalThis.OVERLAY_CONFIG) {
+        return globalThis.OVERLAY_CONFIG;
+    }
+    return {};
+}
+
+function hexToRgbTriplet(hex) {
+    if (!hex || typeof hex !== 'string') return null;
+    const normalized = hex.trim().replace('#', '');
+    const expanded = normalized.length === 3
+        ? normalized.split('').map(ch => ch + ch).join('')
+        : normalized;
+    if (!/^[0-9a-fA-F]{6}$/.test(expanded)) return null;
+    const r = parseInt(expanded.slice(0, 2), 16);
+    const g = parseInt(expanded.slice(2, 4), 16);
+    const b = parseInt(expanded.slice(4, 6), 16);
+    return `${r}, ${g}, ${b}`;
+}
+
+function getThemeKeyFromLocation() {
+    const path = (typeof window !== 'undefined' && window.location && window.location.pathname) ? window.location.pathname.toLowerCase() : '';
+    if (path.endsWith('/starting.html') || path.endsWith('starting.html')) return 'starting';
+    if (path.endsWith('/ending.html') || path.endsWith('ending.html')) return 'ending';
+    if (path.endsWith('/pause.html') || path.endsWith('pause.html')) return 'pause';
+    return 'index';
+}
+
+function applyThemeFromConfig() {
+    const cfg = getOverlayConfig();
+    const themeKey = getThemeKeyFromLocation();
+    const theme = (cfg.themes && cfg.themes[themeKey]) ? cfg.themes[themeKey] : null;
+    if (!theme) return;
+
+    const root = document.documentElement;
+    if (!root) return;
+
+    if (theme.primary) {
+        root.style.setProperty('--theme-primary', theme.primary);
+        const rgb = hexToRgbTriplet(theme.primary);
+        if (rgb) root.style.setProperty('--theme-primary-rgb', rgb);
+    }
+    if (theme.secondary) {
+        root.style.setProperty('--theme-secondary', theme.secondary);
+        const rgb = hexToRgbTriplet(theme.secondary);
+        if (rgb) root.style.setProperty('--theme-secondary-rgb', rgb);
+    }
+    if (theme.accent) {
+        root.style.setProperty('--theme-accent', theme.accent);
+        const rgb = hexToRgbTriplet(theme.accent);
+        if (rgb) root.style.setProperty('--theme-accent-rgb', rgb);
+    }
+
+    // Champs étendus (optionnels)
+    const background = theme.background || theme.bg || theme.accent;
+    if (background) {
+        root.style.setProperty('--theme-bg', background);
+        const rgb = hexToRgbTriplet(background);
+        if (rgb) root.style.setProperty('--theme-bg-rgb', rgb);
+    }
+    const surface = theme.surface;
+    if (surface) {
+        root.style.setProperty('--theme-surface', surface);
+        const rgb = hexToRgbTriplet(surface);
+        if (rgb) root.style.setProperty('--theme-surface-rgb', rgb);
+    }
+    if (theme.text) {
+        root.style.setProperty('--theme-text', theme.text);
+    }
+    if (theme.mutedText) {
+        root.style.setProperty('--theme-muted-text', theme.mutedText);
+    }
+    if (theme.panelBg) {
+        root.style.setProperty('--theme-panel-bg', theme.panelBg);
+        const rgb = hexToRgbTriplet(theme.panelBg);
+        if (rgb) root.style.setProperty('--theme-panel-bg-rgb', rgb);
+    }
+    if (theme.panelBorder) {
+        root.style.setProperty('--theme-panel-border', theme.panelBorder);
+    }
+
+    if (cfg.chat && cfg.chat.defaultColor) {
+        root.style.setProperty('--chat-default-color', cfg.chat.defaultColor);
+    }
+    if (cfg.chat && cfg.chat.badgeSize) {
+        root.style.setProperty('--chat-badge-size', cfg.chat.badgeSize);
+    }
+}
+
+function applyBottomBarContentFromConfig() {
+    const cfg = getOverlayConfig();
+    const content = cfg.panels?.bottom?.content;
+    if (!content) return;
+
+    const infoTexts = Array.isArray(content.infoTexts) ? content.infoTexts : null;
+    const scrollingText = (typeof content.scrollingText === 'string') ? content.scrollingText : null;
+
+    document.querySelectorAll('.bottom-bar').forEach(bar => {
+        // 1) Texte défilant (index.html)
+        if (scrollingText) {
+            const scrollEl = bar.querySelector('.scroll-content');
+            if (scrollEl) {
+                scrollEl.textContent = scrollingText;
+            }
+        }
+
+        // 2) Items info (index.html: .info-item) – on remplit les textes dans l'ordre
+        if (infoTexts && infoTexts.length > 0) {
+            const infoItemTextEls = bar.querySelectorAll('.info-item .info-text');
+            if (infoItemTextEls && infoItemTextEls.length > 0) {
+                infoItemTextEls.forEach((el, idx) => {
+                    if (typeof infoTexts[idx] === 'string') {
+                        el.textContent = infoTexts[idx];
+                    }
+                });
+                return;
+            }
+
+            // 3) Items info (starting/ending.html: .bottom-info > .info-text)
+            const directTextEls = bar.querySelectorAll('.bottom-info > .info-text, .bottom-info > span.info-text, .bottom-info > div.info-text');
+            if (directTextEls && directTextEls.length > 0) {
+                directTextEls.forEach((el, idx) => {
+                    if (typeof infoTexts[idx] === 'string') {
+                        el.textContent = infoTexts[idx];
+                    }
+                });
+            }
+        }
+    });
+}
+
+function shouldLog(level) {
+    const cfg = getOverlayConfig();
+    const dbg = cfg.debug || {};
+    if (!dbg.enabled) return false;
+    const order = { error: 0, warn: 1, info: 2, debug: 3 };
+    const configured = (dbg.logLevel && order[dbg.logLevel] !== undefined) ? order[dbg.logLevel] : order.info;
+    const requested = (level && order[level] !== undefined) ? order[level] : order.info;
+    return requested <= configured;
+}
+
+function log(level, ...args) {
+    if (!shouldLog(level)) return;
+    const fn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+    fn(...args);
+}
+
 // Variables globales
 const alertQueue = [];
 let isProcessingAlerts = false; // Variable pour éviter les traitements parallèles
@@ -16,6 +163,12 @@ const badgeUrlMapping = {
 
 function showAlert(type, username, message = '', amount = '') {
     return new Promise((resolve) => {
+        const cfg = getOverlayConfig();
+        if (cfg.alerts && cfg.alerts.enabled === false) {
+            resolve();
+            return;
+        }
+
         const alertContainer = document.getElementById('alertContainer');
         const alertIcon = document.getElementById('alertIcon');
         const alertTitle = document.getElementById('alertTitle');
@@ -24,7 +177,12 @@ function showAlert(type, username, message = '', amount = '') {
         const alertAmount = document.getElementById('alertAmount');
 
         // Utiliser la config pour les types d'alertes
-        const config = OVERLAY_CONFIG.alerts.types[type] || OVERLAY_CONFIG.alerts.types.follow;
+        const typesCfg = (cfg.alerts && cfg.alerts.types) ? cfg.alerts.types : {};
+        const config = typesCfg[type] || typesCfg.follow;
+        if (!config) {
+            resolve();
+            return;
+        }
 
         // Configuration de l'alerte
         alertIcon.innerHTML = config.icon;
@@ -48,12 +206,12 @@ function showAlert(type, username, message = '', amount = '') {
         alertContainer.style.opacity = 1;
 
         // Ajouter l'effet de confettis avec la config
-        if (typeof confetti !== 'undefined') {
+        if (typeof confetti !== 'undefined' && (!cfg.alerts || cfg.alerts.confettiEnabled !== false)) {
             confetti({
-                particleCount: OVERLAY_CONFIG.alerts.confettiParticles,
-                startVelocity: OVERLAY_CONFIG.alerts.confettiVelocity,
-                spread: OVERLAY_CONFIG.alerts.confettiSpread,
-                ticks: OVERLAY_CONFIG.alerts.confettiTicks,
+                particleCount: cfg.alerts?.confettiParticles ?? 300,
+                startVelocity: cfg.alerts?.confettiVelocity ?? 50,
+                spread: cfg.alerts?.confettiSpread ?? 360,
+                ticks: cfg.alerts?.confettiTicks ?? 250,
                 origin: { y: 0.5 }
             });
         }
@@ -63,7 +221,7 @@ function showAlert(type, username, message = '', amount = '') {
             alertContainer.classList.add('hide');
             alertContainer.style.opacity = 0;
             setTimeout(resolve, 600);
-        }, OVERLAY_CONFIG.alerts.duration);
+        }, cfg.alerts?.duration ?? 6000);
     });
 }
 
@@ -80,9 +238,11 @@ function processAlertQueue() {
         isProcessingAlerts = false;
 
         // Traiter la prochaine alerte après un petit délai
+        const cfg = getOverlayConfig();
+        const queueDelay = cfg.alerts?.queueDelay ?? 500;
         setTimeout(() => {
             processAlertQueue();
-        }, 500); // 500ms entre chaque alerte
+        }, queueDelay);
     });
 }
 
@@ -105,28 +265,37 @@ function escapeHtml(text) {
 }
 
 function addChatMessage(username, message, color, badgeUrls) {
+    const cfg = getOverlayConfig();
     const container = document.getElementById('chatContainer');
     if (!container) return;
 
     const messageElement = document.createElement('div');
     messageElement.className = 'chat-message';
     messageElement.innerHTML = `
-        <div class="chat-username" style="color: ${color || '#3b82f6'};">
+        <div class="chat-username" style="color: ${color || cfg.chat?.defaultColor || '#3b82f6'};">
             ${badgeUrls ? Object.entries(badgeUrls).map(([key, url]) => `<img src="${url}" alt="${key} badge" class="chat-badge">`).join('') : ''}
             ${escapeHtml(username || 'Anonymous')}
         </div>
         <div class="chat-text">${escapeHtml(message || '')}</div>
     `;
     container.appendChild(messageElement);
-    container.scrollTop = container.scrollHeight;
+    if (cfg.chat?.scrollBehavior === 'smooth') {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    } else {
+        container.scrollTop = container.scrollHeight;
+    }
 }
 
 // ========== GESTION DES BADGES ==========
 
 async function fetchBadges(broadcasterId) {
     try {
-        const response = await fetch(`http://localhost:8080/badges/${broadcasterId}`);
-        const responseGlobal = await fetch(`http://localhost:8080/badgesglobal`);
+        const cfg = getOverlayConfig();
+        const host = cfg.server?.host ?? 'localhost';
+        const port = cfg.server?.port ?? 8080;
+        const baseUrl = `http://${host}:${port}`;
+        const response = await fetch(`${baseUrl}/badges/${broadcasterId}`);
+        const responseGlobal = await fetch(`${baseUrl}/badgesglobal`);
 
         const data = await response.json();
 
@@ -156,10 +325,15 @@ async function fetchBadges(broadcasterId) {
 // ========== WEBSOCKET ==========
 
 function initWebSocket() {
-    const ws = new WebSocket(`ws://localhost:8081`);
+    const cfg = getOverlayConfig();
+    const host = cfg.server?.host ?? 'localhost';
+    const wsPort = cfg.server?.wsPort ?? 8081;
+    const ws = new WebSocket(`ws://${host}:${wsPort}`);
 
     ws.onopen = function () {
-        console.log('WebSocket connecté');
+        if (cfg.debug?.showWebSocketLogs !== false) {
+            log('info', 'WebSocket connecté');
+        }
     };
 
     ws.onmessage = function (event) {
@@ -214,11 +388,15 @@ function initWebSocket() {
     };
 
     ws.onerror = function (error) {
-        console.error('Erreur WebSocket:', error);
+        if (cfg.debug?.showWebSocketLogs !== false) {
+            log('error', 'Erreur WebSocket:', error);
+        }
     };
 
     ws.onclose = function () {
-        console.log('WebSocket fermé');
+        if (cfg.debug?.showWebSocketLogs !== false) {
+            log('info', 'WebSocket fermé');
+        }
     };
 
     return ws;
@@ -240,7 +418,7 @@ function createParticles(count = 30, duration = [5, 8]) {
     }
 }
 
-function createStars(count = 80) {
+function createStars(count = 80, duration = [1.5, 2.5]) {
     const starsContainer = document.getElementById('stars');
     if (!starsContainer) return;
 
@@ -249,13 +427,15 @@ function createStars(count = 80) {
         star.className = 'star';
         star.style.left = Math.random() * 100 + '%';
         star.style.top = Math.random() * 100 + '%';
-        star.style.animationDelay = Math.random() * 2 + 's';
-        star.style.animationDuration = (Math.random() * 1 + 1.5) + 's';
+        star.style.animationDelay = Math.random() * (duration[1] ?? 2.5) + 's';
+        const min = duration[0] ?? 1.5;
+        const max = duration[1] ?? 2.5;
+        star.style.animationDuration = (Math.random() * (max - min) + min) + 's';
         starsContainer.appendChild(star);
     }
 }
 
-function createMeteors(count = 8) {
+function createMeteors(count = 8, duration = [2, 3]) {
     const meteorsContainer = document.getElementById('meteors');
     if (!meteorsContainer) return;
 
@@ -263,33 +443,35 @@ function createMeteors(count = 8) {
         const meteor = document.createElement('div');
         meteor.className = 'meteor';
         meteor.style.left = Math.random() * 100 + '%';
-        meteor.style.animationDelay = Math.random() * 3 + 's';
-        meteor.style.animationDuration = (Math.random() * 1 + 2) + 's';
+        meteor.style.animationDelay = Math.random() * (duration[1] ?? 3) + 's';
+        const min = duration[0] ?? 2;
+        const max = duration[1] ?? 3;
+        meteor.style.animationDuration = (Math.random() * (max - min) + min) + 's';
         meteorsContainer.appendChild(meteor);
     }
 }
 
-function createCircuitLines() {
+function createCircuitLines(horizontal = 10, vertical = 8, duration = 6) {
     const circuitContainer = document.getElementById('circuitLines');
     if (!circuitContainer) return;
 
     // Lignes horizontales
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < horizontal; i++) {
         const line = document.createElement('div');
         line.className = 'circuit-line horizontal';
         line.style.top = Math.random() * 100 + '%';
         line.style.left = Math.random() * 80 + '%';
-        line.style.animationDelay = Math.random() * 6 + 's';
+        line.style.animationDelay = Math.random() * duration + 's';
         circuitContainer.appendChild(line);
     }
 
     // Lignes verticales
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < vertical; i++) {
         const line = document.createElement('div');
         line.className = 'circuit-line vertical';
         line.style.left = Math.random() * 100 + '%';
         line.style.top = Math.random() * 80 + '%';
-        line.style.animationDelay = Math.random() * 6 + 's';
+        line.style.animationDelay = Math.random() * duration + 's';
         circuitContainer.appendChild(line);
     }
 }
@@ -297,6 +479,9 @@ function createCircuitLines() {
 // ========== LOGO DVD ANIMATION ==========
 
 function initDVDLogo() {
+    const cfg = getOverlayConfig();
+    if (cfg.animations?.enabled === false || cfg.animations?.dvdLogo?.enabled === false) return;
+
     const logoContainer = document.getElementById('logoContainer');
     const dvdLogo = document.getElementById('dvdLogo');
 
@@ -311,8 +496,9 @@ function initDVDLogo() {
 
     let posX = Math.random() * (rectWidth - logoWidth) + rectLeft;
     let posY = Math.random() * (rectHeight - logoHeight) + rectTop;
-    let deltaX = 2;
-    let deltaY = 2;
+    const speed = cfg.animations?.dvdLogo?.speed ?? 2;
+    let deltaX = speed;
+    let deltaY = speed;
 
     function moveLogo() {
         posX += deltaX;
@@ -328,7 +514,8 @@ function initDVDLogo() {
         logoContainer.style.transform = `translate(${posX}px, ${posY}px)`;
     }
 
-    setInterval(moveLogo, 16);
+    const updateInterval = cfg.animations?.dvdLogo?.updateInterval ?? 16;
+    setInterval(moveLogo, updateInterval);
 }
 
 // ========== ANIMATION COMPTEURS ==========
@@ -357,18 +544,59 @@ function animateCounter(element, start, end, duration) {
 // ========== INITIALISATION ==========
 
 function initCommonOverlay() {
+    const cfg = getOverlayConfig();
+
+    // Thème (couleurs) + variables CSS
+    applyThemeFromConfig();
+
+    // Contenu bottom bar (textes centralisés)
+    applyBottomBarContentFromConfig();
+
+    // Panneaux statiques (starting/ending) : possibilité de les masquer via config
+    if (cfg.panels?.bottom?.enabled === false) {
+        document.querySelectorAll('.bottom-bar, #bottomBar').forEach(el => {
+            el.style.display = 'none';
+        });
+    }
+
     // Charger les badges
-    fetchBadges(OVERLAY_CONFIG.twitch.broadcasterId);
+    if (cfg.twitch?.broadcasterId) {
+        fetchBadges(cfg.twitch.broadcasterId);
+    }
 
     // Initialiser WebSocket
     initWebSocket();
 
     // Créer les animations de base
-    createParticles();
-    createStars();
+    if (cfg.animations?.enabled !== false) {
+        if (cfg.animations?.particles?.enabled !== false) {
+            createParticles(cfg.animations?.particles?.count ?? 30, cfg.animations?.particles?.duration ?? [5, 8]);
+        }
+        if (cfg.animations?.stars?.enabled !== false) {
+            createStars(cfg.animations?.stars?.count ?? 80, cfg.animations?.stars?.duration ?? [1.5, 2.5]);
+        }
+        if (cfg.animations?.meteors?.enabled !== false) {
+            createMeteors(cfg.animations?.meteors?.count ?? 8, cfg.animations?.meteors?.duration ?? [2, 3]);
+        }
+        if (cfg.animations?.circuitLines?.enabled !== false) {
+            createCircuitLines(
+                cfg.animations?.circuitLines?.horizontal ?? 10,
+                cfg.animations?.circuitLines?.vertical ?? 8,
+                cfg.animations?.circuitLines?.duration ?? 6
+            );
+        }
+    }
 
     // Initialiser le logo DVD
     initDVDLogo();
+
+    try {
+        if (typeof globalThis !== 'undefined') {
+            globalThis.__OVERLAY_COMMON_ANIMATIONS_DONE = true;
+        }
+    } catch (_) {
+        // no-op
+    }
 }
 
 // Auto-initialisation quand le DOM est chargé

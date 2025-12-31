@@ -3,21 +3,18 @@
  * Fonctionnalités personnalisées pour la page principale du stream
  */
 
-// Configuration spécifique à index.html
-const CONFIG = {
-    panelInterval: 300000, // 5 minutes
-    panelDuration: 15000,  // 10 secondes
-    bottomInterval: 180000, // 3 minutes
-    bottomDuration: 20000,  // 20 secondes
-};
-
 let timerInterval;
 let progress = 0;
 const interval = 500;
-const totalSteps = CONFIG.panelDuration / interval;
+let totalSteps = 0;
 
+// getOverlayConfig is defined globally in overlay-common.js and reused here.
 // Système de popup toutes les 5 minutes
 async function showInfoPanel() {
+    const cfg = getOverlayConfig();
+    const panelCfg = cfg.panels?.left;
+    if (panelCfg?.enabled === false) return;
+
     if (timerInterval) {
         clearInterval(timerInterval);
     }
@@ -32,7 +29,9 @@ async function showInfoPanel() {
         return;
     }
     const panel = document.getElementById('leftPanel');
+    if (!panel) return;
     const timer = panel.querySelector('.timer-progress');
+    if (!timer) return;
 
     updateLeftPanel('leftPanelDestination', `${data.lastJob.source_city_name} → ${data.lastJob.destination_city_name}`);
     updateLeftPanel('leftPanelDistance', `${data.lastJob.planned_distance_km} km`);
@@ -46,18 +45,21 @@ async function showInfoPanel() {
     progress = 0;
     timer.style.background = `conic-gradient(#ef4444 0%, transparent 0%)`;
 
+    const duration = panelCfg?.duration ?? 15000;
+    totalSteps = duration / interval;
     timerInterval = setInterval(() => updateTimer(timer), interval);
     panel.classList.add('show');
 
     setTimeout(() => {
         panel.classList.remove('show');
         clearInterval(timerInterval);
-    }, CONFIG.panelDuration);
+    }, duration);
 }
 
 function updateTimer(timer) {
+    if (!totalSteps || totalSteps <= 0) return;
     progress += (100 / totalSteps);
-    timer.style.background = `conic-gradient(#ef4444 ${progress}%, transparent ${progress}%)`;
+    timer.style.background = `conic-gradient(var(--timer-color, #ef4444) ${progress}%, transparent ${progress}%)`;
 
     if (progress >= 100) {
         clearInterval(timerInterval);
@@ -65,16 +67,22 @@ function updateTimer(timer) {
 }
 
 function showBottomBar() {
+    const cfg = getOverlayConfig();
+    const panelCfg = cfg.panels?.bottom;
+    if (panelCfg?.enabled === false) return;
+
     const bottomBar = document.getElementById('bottomBar');
+    if (!bottomBar) return;
     bottomBar.style.display = 'flex';
     bottomBar.style.animation = 'slide-in-up 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
 
+    const duration = panelCfg?.duration ?? 20000;
     setTimeout(() => {
         bottomBar.style.animation = 'slide-out-down 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
         setTimeout(() => {
             bottomBar.style.display = 'none';
         }, 600);
-    }, CONFIG.bottomDuration);
+    }, duration);
 }
 
 function updateLeftPanel(id, value) {
@@ -93,10 +101,18 @@ function seperateThousands(value) {
 
 // Initialisation automatique quand le DOM est prêt
 document.addEventListener('DOMContentLoaded', function () {
-    // Première popup après 5 secondes puis toutes les 5 minutes
-    setTimeout(showInfoPanel, 30000);
-    setInterval(showInfoPanel, CONFIG.panelInterval);
 
-    setTimeout(showBottomBar, 10000);
-    setInterval(showBottomBar, CONFIG.bottomInterval);
+    const cfg = getOverlayConfig();
+    const leftCfg = cfg.panels?.left;
+    const bottomCfg = cfg.panels?.bottom;
+
+    if (leftCfg?.enabled !== false) {
+        setTimeout(showInfoPanel, leftCfg?.firstDelay ?? 30000);
+        setInterval(showInfoPanel, leftCfg?.interval ?? 300000);
+    }
+
+    if (bottomCfg?.enabled !== false) {
+        setTimeout(showBottomBar, bottomCfg?.firstDelay ?? 10000);
+        setInterval(showBottomBar, bottomCfg?.interval ?? 180000);
+    }
 });

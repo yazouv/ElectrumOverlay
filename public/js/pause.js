@@ -162,8 +162,9 @@ function updateViewersCount(count) {
 
 // Animations d'éléments
 function startElementAnimations() {
+    const cfg = getOverlayConfig();
     // Effet de confettis occasionnel
-    if (typeof confetti !== 'undefined') {
+    if (typeof confetti !== 'undefined' && cfg.alerts?.confettiEnabled !== false) {
         setInterval(() => {
             if (Math.random() < 0.1) { // 10% de chance toutes les 5 secondes
                 confetti({
@@ -180,8 +181,20 @@ function startElementAnimations() {
 
 // Initialiser les effets de particules
 function initializeParticleEffects() {
+    const cfg = getOverlayConfig();
+    if (cfg.animations?.enabled === false) return;
+
+    if (typeof globalThis !== 'undefined') {
+        // If common overlay animations have already been initialized elsewhere, do nothing.
+        if (globalThis.__OVERLAY_COMMON_ANIMATIONS_DONE) {
+            return;
+        }
+        // Mark animations as initialized to prevent duplicate initialization in other scripts.
+        globalThis.__OVERLAY_COMMON_ANIMATIONS_DONE = true;
+    }
+
     if (typeof createStars === 'function') {
-        createStars(30); // Moins d'étoiles pour une ambiance plus calme
+        createStars(cfg.animations?.stars?.count ?? 30, cfg.animations?.stars?.duration ?? [1.5, 2.5]);
     }
 
     // if (typeof createMeteors === 'function') {
@@ -193,7 +206,7 @@ function initializeParticleEffects() {
     // }
 
     if (typeof createParticles === 'function') {
-        createParticles(20); // Particules réduites
+        createParticles(cfg.animations?.particles?.count ?? 20, cfg.animations?.particles?.duration ?? [5, 8]);
     }
 }
 
