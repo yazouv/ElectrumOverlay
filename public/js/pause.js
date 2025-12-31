@@ -9,13 +9,6 @@ let clockInterval = null;
 let messageRotationInterval = null;
 let progressInterval = null;
 
-function getOverlayConfig() {
-    if (typeof globalThis !== 'undefined' && globalThis.OVERLAY_CONFIG) {
-        return globalThis.OVERLAY_CONFIG;
-    }
-    return {};
-}
-
 // Messages de pause rotatifs
 const pauseMessages = [
     "🎮 Pause technique - On revient tout de suite !",
