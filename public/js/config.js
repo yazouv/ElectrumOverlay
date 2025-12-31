@@ -123,7 +123,7 @@ const OVERLAY_CONFIG = {
             // Remarque: l'ordre correspond à l'ordre d'affichage dans les HTML.
             content: {
                 infoTexts: [
-                    'twitch.tv/arkyan_',
+                    'twitch.tv/your_channel',
                     'discord.electrumvtc.fr',
                     'electrumvtc.fr'
                 ],
