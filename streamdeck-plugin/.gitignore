@@ -1,0 +1,3 @@
+# Produits de compilation et logs écrits par Stream Deck
+*.sdPlugin/bin
+*.sdPlugin/logs

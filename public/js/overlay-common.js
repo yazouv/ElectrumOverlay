@@ -3,6 +3,43 @@
  * Contient toutes les fonctions partagées entre starting.html, index.html et ending.html
  */
 
+/**
+ * Traduction des textes intégrés des overlays (interface en anglais) : dictionnaire servi par
+ * /js/i18n.js (globalThis.OVERLAY_I18N, vide en français ou si le fichier n'existe pas — version
+ * Electron). Correspondance exacte du texte ; {n}, {name}... sont remplacés par `vars`.
+ * Les textes personnalisés par l'utilisateur ne sont pas dans le dictionnaire : inchangés.
+ */
+function tr(text, vars) {
+    const dict = globalThis.OVERLAY_I18N?.dict || {};
+    // Espaces normalisés : un texte du HTML peut être coupé sur plusieurs lignes.
+    const key = typeof text === 'string' ? text.replace(/\s+/g, ' ').trim() : text;
+    let out = dict[key] !== undefined ? dict[key] : text;
+    if (vars && typeof out === 'string') {
+        for (const [key, value] of Object.entries(vars)) out = out.split('{' + key + '}').join(String(value));
+    }
+    return out;
+}
+
+/** Traduit en place les textes du HTML de la page (titres par défaut, libellés...). */
+function translateStaticTexts(root) {
+    if (!globalThis.OVERLAY_I18N || globalThis.OVERLAY_I18N.lang === 'fr' || !root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((node) => {
+        const text = node.nodeValue.trim();
+        if (!text) return;
+        const translated = tr(text);
+        if (translated !== text) node.nodeValue = node.nodeValue.replace(text, translated);
+        // Texte coupé par des balises (<br>, <span>...) : on tente le texte complet de l'élément.
+        else if (node.parentElement && node.parentElement.childNodes.length > 1) {
+            const parent = node.parentElement;
+            const whole = tr(parent.textContent);
+            if (whole !== parent.textContent && parent.children.length === 0) parent.textContent = whole;
+        }
+    });
+}
+
 function getOverlayConfig() {
     if (typeof globalThis !== 'undefined' && globalThis.OVERLAY_CONFIG) {
         return globalThis.OVERLAY_CONFIG;
@@ -23,11 +60,20 @@ function hexToRgbTriplet(hex) {
     return `${r}, ${g}, ${b}`;
 }
 
+// Clés des 4 pages intégrées — tout autre pageKey est l'id d'une scène personnalisée. Sert à
+// choisir les bons défauts : les pages intégrées gardent leur fond de thème et suivent les
+// réglages d'animations globaux tant qu'aucun réglage de scène ne les surcharge.
+const OVERLAY_BUILTIN_PAGES = ['starting', 'index', 'pause', 'ending'];
+
 function getThemeKeyFromLocation() {
     const path = (typeof window !== 'undefined' && window.location && window.location.pathname) ? window.location.pathname.toLowerCase() : '';
     if (path.endsWith('/starting.html') || path.endsWith('starting.html')) return 'starting';
     if (path.endsWith('/ending.html') || path.endsWith('ending.html')) return 'ending';
     if (path.endsWith('/pause.html') || path.endsWith('pause.html')) return 'pause';
+    // Scène personnalisée (/scene/<uuid>) : la clé de page est l'id de la scène — layout,
+    // customTexts, texts... s'indexent dessus exactement comme sur les 4 pages intégrées.
+    const sceneMatch = path.match(/\/scene\/([a-z0-9-]+)/);
+    if (sceneMatch) return sceneMatch[1];
     return 'index';
 }
 
@@ -90,6 +136,1390 @@ function applyThemeFromConfig() {
     if (cfg.chat && cfg.chat.badgeSize) {
         root.style.setProperty('--chat-badge-size', cfg.chat.badgeSize);
     }
+
+    const timerColor = cfg.panels?.left?.timerColor;
+    if (timerColor) {
+        root.style.setProperty('--timer-color', timerColor);
+        const rgb = hexToRgbTriplet(timerColor);
+        if (rgb) root.style.setProperty('--timer-color-rgb', rgb);
+    }
+}
+
+function applyBottomBarVisibilityFromConfig() {
+    const cfg = getOverlayConfig();
+    const visible = cfg.panels?.bottom?.enabled !== false;
+    document.querySelectorAll('.bottom-bar, #bottomBar').forEach(el => {
+        el.style.display = visible ? '' : 'none';
+    });
+}
+
+function applyChatVisibilityFromConfig() {
+    const cfg = getOverlayConfig();
+    const pageKey = getThemeKeyFromLocation();
+    const visible = cfg.chat?.enabled?.[pageKey] !== false;
+    // :not([data-scene-custom-text]) : un widget chat AJOUTÉ depuis l'éditeur de scène a sa
+    // propre visibilité (œil de l'éditeur) — la bascule globale de /settings ne concerne que le
+    // panneau intégré de la page.
+    document.querySelectorAll('.chat-panel:not([data-scene-custom-text])').forEach(el => {
+        el.style.display = visible ? '' : 'none';
+    });
+}
+
+/**
+ * Expose l'INVERSE du zoom de l'élément en variable CSS, posée partout où `style.zoom` est écrit
+ * (les deux seuls endroits : applyLayoutFromConfig et renderCustomTextsFromConfig) pour qu'elle ne
+ * puisse jamais se désynchroniser. Sans effet en usage normal (OBS, navigateur) : seul le CSS
+ * d'édition de scene-editor-bridge.js la consomme, pour que le cadre pointillé, l'étiquette et les
+ * poignées gardent une taille visuelle CONSTANTE — le zoom multipliant sinon aussi ces décorations
+ * (à 400%, un pointillé de 2px devient 8px et l'étiquette devient illisible de taille).
+ */
+function setInverseZoomVar(el, zoom) {
+    if (zoom && zoom !== 1) {
+        el.style.setProperty('--scene-inv-zoom', String(1 / zoom));
+    } else {
+        el.style.removeProperty('--scene-inv-zoom');
+    }
+}
+
+/**
+ * Bornage des positions enregistrées, mêmes bornes que côté serveur (clampPercent dans
+ * src/routes/profiles.js) : garde-fou contre les valeurs aberrantes (ancien bug de compensation de
+ * drag, qui a pu enregistrer des top 114vh / left 119vw) sans empêcher de sortir volontairement un
+ * élément du cadre par n'importe quel bord — top/left désignant le coin haut-gauche, il faut du
+ * négatif pour dépasser en haut/à gauche. Sans effet sur la taille de la page capturée par OBS :
+ * ces éléments sont en position:fixed dans un body 100vw/100vh overflow:hidden, ce qui dépasse est
+ * rogné.
+ */
+const LAYOUT_MIN_PERCENT = -100;
+const LAYOUT_MAX_PERCENT = 200;
+function clampLayoutPercent(v) {
+    return Math.min(LAYOUT_MAX_PERCENT, Math.max(LAYOUT_MIN_PERCENT, v));
+}
+
+/**
+ * Opacité du FOND d'un panneau (chat, widget Spotify) : le pourcentage de l'éditeur de scène est
+ * posé comme variable CSS consommée par le rgba(...) du panneau (--chat-bg-opacity,
+ * --spotify-bg-opacity — même idiome que --keys-bg-opacity/--ticker-bg-opacity), plutôt que via
+ * `opacity` sur l'élément, qui atténuerait AUSSI le texte et les images du widget.
+ * `null`/undefined = aucun override : on retire la variable pour laisser jouer la valeur de repli
+ * du CSS. Les ombres portées suivent la même variable directement en CSS (un min() dans leur
+ * rgba) — surtout PAS neutralisées ici : sur les pages Démarrage/Fin, le panneau de chat porte
+ * aussi .neon-border, dont le halo est une décoration voulue qui n'a rien à voir avec l'opacité du
+ * fond. Seul le flou d'arrière-plan est coupé à 0 : il ne dépend d'aucune couleur et laisserait
+ * sinon un voile visible là où l'utilisateur a demandé un fond totalement transparent.
+ */
+function applyPanelBgOpacity(el, cssVar, percent) {
+    if (typeof percent !== 'number') {
+        el.style.removeProperty(cssVar);
+        el.style.removeProperty('backdrop-filter');
+        return;
+    }
+    const ratio = Math.max(0, Math.min(100, percent)) / 100;
+    el.style.setProperty(cssVar, String(ratio));
+    if (ratio === 0) el.style.setProperty('backdrop-filter', 'none');
+    else el.style.removeProperty('backdrop-filter');
+}
+
+/**
+ * Ordre d'empilement choisi dans l'éditeur (couche "Premier plan / Avancer / Reculer /
+ * Arrière-plan"), stocké dans l'entrée de layout de l'élément — intégré comme custom.
+ */
+// Empilement par défaut des éléments CUSTOM, dans la même unité que tout le reste : un z-index.
+// Une boîte sert de fond par nature, une zone d'alertes doit passer devant.
+const CUSTOM_BASE_Z = { box: 240, alerts: 300 };
+const CUSTOM_BASE_Z_DEFAULT = 250;
+
+/**
+ * Ordre d'empilement d'un élément de scène. L'ordre choisi dans l'éditeur est un z-index ABSOLU,
+ * exprimé sur la même échelle que les valeurs par défaut — celles du CSS pour les éléments
+ * intégrés (bloc titre 1, indicateurs 10, chat 100, panneau gauche 200, alertes 300) comme celles
+ * ci-dessus pour les éléments custom.
+ *
+ * C'est le point clé : une échelle SÉPARÉE (une "bande" réservée aux éléments classés) rendait le
+ * réglage inopérant dès qu'on le comparait à un élément jamais classé — mettre les alertes en
+ * arrière-plan les laissait devant le panneau de chat, qui gardait son 100 issu du CSS. Sur une
+ * échelle unique, "arrière-plan" = (le plus petit z de la scène) − 1, ce qui passe forcément
+ * dessous. Sans réglage, chaque élément garde exactement son empilement d'origine.
+ *
+ * @param {number|null} baseZ empilement de repli, ou null si inconnu (rien n'est alors posé).
+ */
+function applyStackOrder(el, entry, baseZ = null) {
+    const explicit = entry && typeof entry.z === 'number' ? entry.z : null;
+    const z = explicit !== null ? explicit : baseZ;
+    if (z !== null) {
+        el.style.zIndex = String(z);
+        // z-index n'a d'effet que sur un élément positionné. Certains blocs intégrés (titleBlock,
+        // streamStats...) sont volontairement en position statique dans leur CSS (ex: streamStats,
+        // pour ne pas sortir du flex qui le centre) : SANS ce passage systématique en `relative`
+        // (même quand `explicit` est null, donc dès le premier rendu, pas seulement après un clic
+        // sur les boutons de couche), un tel élément reste hors du modèle d'empilement — son
+        // z-index posé juste au-dessus est inerte, `.scene-selected` (voir scene-editor-bridge.js,
+        // même mécanisme pour attraper un petit élément entièrement recouvert) ne peut jamais le
+        // remonter, et il restait alors perdu sous un plus grand sans aucun moyen de le récupérer
+        // depuis l'éditeur. `relative` sans décalage ne bouge rien à l'écran ni au flex qui le
+        // centre (seul `absolute`/`fixed` en sortirait).
+        if (getComputedStyle(el).position === 'static') {
+            el.style.position = 'relative';
+        }
+    }
+    // Empilement EFFECTIF (et pas seulement l'ordre enregistré) : l'éditeur s'en sert pour calculer
+    // "avancer/reculer d'un cran" par rapport aux voisins, y compris ceux qui n'ont jamais été
+    // classés à la main.
+    el.dataset.propZ = z !== null ? String(z) : '';
+}
+
+/**
+ * Positions/visibilité custom posées depuis l'éditeur de scène (/scene-editor), par page —
+ * cfg.layout[page] = { elementId: {top?, left?, hidden?} } (top/left en % de la hauteur/largeur).
+ * Entièrement déclaratif : chaque élément déplaçable est reposé à partir de RIEN d'autre que la
+ * config à chaque appel (y compris pour revenir à sa position CSS par défaut quand son override
+ * a été retiré) — indispensable pour que "Réinitialiser" et "Masquer/Afficher" depuis
+ * /scene-editor s'appliquent en direct via la diffusion WebSocket 'config-updated', sans recharger
+ * la page. On ne touche jamais `transform` : les éléments qui en dépendent pour leur
+ * centrage/animation (ex: .alert-container) continuent de fonctionner normalement, seul leur
+ * point d'ancrage top/left change.
+ */
+function applyLayoutFromConfig() {
+    const cfg = getOverlayConfig();
+    const pageKey = getThemeKeyFromLocation();
+    const layout = cfg.layout?.[pageKey] || {};
+
+    document.querySelectorAll('[data-scene-el]').forEach((el) => {
+        const elementId = el.dataset.sceneEl;
+        if (elementId.startsWith('custom:')) return; // gérés par renderCustomTextsFromConfig()
+        const pos = layout[elementId];
+
+        // "Supprimé" depuis l'éditeur : l'élément intégré est retiré de la page comme s'il n'y
+        // avait jamais figuré (il disparaît aussi de la liste des sources, voir data-scene-removed
+        // dans scene-editor-bridge.js) — c'est ce qui permet de vider une page intégrée pour la
+        // reconstruire entièrement avec des éléments libres. On MASQUE au lieu de retirer le nœud
+        // du DOM : le rétablissement doit pouvoir se faire en direct au prochain config-updated,
+        // ce qu'un nœud détruit interdirait (il faudrait recharger la source OBS). Posé avec
+        // 'important' pour la même raison que `hidden` (voir plus bas).
+        const wasRemoved = el.dataset.sceneRemoved === '1';
+        const removed = !!(pos && pos.removed);
+        el.dataset.sceneRemoved = removed ? '1' : '';
+        if (removed) {
+            el.style.setProperty('display', 'none', 'important');
+            return;
+        }
+        // Rétablissement : on ne libère `display` que si c'est bien NOUS qui l'avions verrouillé.
+        // Le nettoyer inconditionnellement écraserait le display:none légitime posé juste avant par
+        // applyChatVisibilityFromConfig()/applyBottomBarVisibilityFromConfig() (bascules de
+        // /settings) — le chat désactivé dans les réglages réapparaîtrait.
+        if (wasRemoved) el.style.removeProperty('display');
+
+        // Échelle visuelle par élément via CSS zoom : contrairement au redimensionnement
+        // width/height (qui donne plus d'espace au contenu à taille de texte constante), le zoom
+        // agrandit tout — texte, icônes, paddings — comme l'échelle d'une source dans OBS, sans
+        // toucher à transform (réservé aux animations). Chrome multiplie par le zoom TOUTES les
+        // longueurs de l'élément (top/left/width/height compris — vérifié empiriquement) : les
+        // valeurs stockées étant "visuelles" (ce que l'utilisateur voit et dépose au drag), tout
+        // ce qu'on écrit dans les styles est donc divisé par le zoom. Les badges à texte adaptatif
+        // (data-scene-scale-text) sont exclus : leur police suit déjà le redimensionnement, un
+        // zoom par-dessus ferait double emploi et fausserait leur mesure "naturelle".
+        const isScaleTextBadge = el.dataset.sceneScaleText !== undefined;
+        const zoom = (!isScaleTextBadge && pos && typeof pos.scale === 'number' && pos.scale > 0) ? pos.scale / 100 : 1;
+        el.style.zoom = zoom !== 1 ? String(zoom) : '';
+        setInverseZoomVar(el, zoom);
+
+        // Couleurs de thème surchargées PAR ÉLÉMENT : les variables --theme-* sont posées
+        // localement sur l'élément — tout son CSS (et celui de ses descendants) qui consomme ces
+        // variables les résout alors à la valeur locale, sans toucher au reste de la page. Les
+        // variantes -rgb (utilisées dans des rgba(...) par le CSS des panneaux) suivent.
+        // Entièrement déclaratif : sans override, on retire la propriété (retour au thème de la
+        // page). Les datasets exposent les valeurs à l'éditeur de scène (reportReady, bridge).
+        [['primary', '--theme-primary'], ['secondary', '--theme-secondary'], ['text', '--theme-text'],
+         ['panelBg', '--theme-panel-bg'], ['panelBorder', '--theme-panel-border']].forEach(([key, cssVar]) => {
+            const value = (pos && typeof pos[key] === 'string') ? pos[key] : null;
+            if (value) {
+                el.style.setProperty(cssVar, value);
+                const rgb = hexToRgbTriplet(value);
+                if (rgb) el.style.setProperty(cssVar + '-rgb', rgb);
+            } else {
+                el.style.removeProperty(cssVar);
+                el.style.removeProperty(cssVar + '-rgb');
+            }
+            el.dataset['prop' + key.charAt(0).toUpperCase() + key.slice(1)] = value || '';
+        });
+        el.dataset.propScale = (pos && typeof pos.scale === 'number') ? String(pos.scale) : '';
+        // Empilement de repli d'un élément intégré = celui de son CSS, capturé UNE fois : aux
+        // passages suivants (config-updated), le z-index calculé serait celui qu'on a nous-mêmes
+        // posé, et la valeur d'origine serait perdue.
+        if (el.dataset.baseZ === undefined) {
+            const cssZ = parseInt(getComputedStyle(el).zIndex, 10);
+            el.dataset.baseZ = String(Number.isFinite(cssZ) ? cssZ : 0);
+        }
+        applyStackOrder(el, pos, Number(el.dataset.baseZ));
+
+        // Opacité du fond du panneau de chat INTÉGRÉ (index.html) : même réglage que celui du
+        // panneau de chat ajouté depuis l'éditeur (les deux portent la classe .chat-panel, donc la
+        // même règle CSS lit --chat-bg-opacity) — l'éditeur ne propose d'ailleurs le champ que pour
+        // cet élément intégré. Réservé aux éléments qui consomment vraiment la variable : sur les
+        // autres, applyPanelBgOpacity toucherait inutilement à leur ombre portée.
+        if (el.classList.contains('chat-panel')) {
+            applyPanelBgOpacity(el, '--chat-bg-opacity', pos ? pos.opacity : undefined);
+        }
+        el.dataset.propOpacity = (pos && typeof pos.opacity === 'number') ? String(pos.opacity) : '';
+
+        if (pos && typeof pos.top === 'number' && typeof pos.left === 'number') {
+            // Bornage large (voir clampLayoutPercent) : le dépassement de cadre est volontairement
+            // permis dans les quatre directions, seules les valeurs aberrantes sont ramenées.
+            el.style.position = 'fixed';
+            el.style.top = (clampLayoutPercent(pos.top) / zoom) + 'vh';
+            el.style.left = (clampLayoutPercent(pos.left) / zoom) + 'vw';
+            el.style.right = 'auto';
+            el.style.bottom = 'auto';
+        } else {
+            el.style.position = '';
+            el.style.top = '';
+            el.style.left = '';
+            el.style.right = '';
+            el.style.bottom = '';
+        }
+
+        // Ne touche display que si l'éditeur de scène a un avis explicite dessus — sinon on
+        // laisse la main à applyChatVisibilityFromConfig()/applyBottomBarVisibilityFromConfig()
+        // (chat/bandeau bas ont leur propre bascule dans les réglages classiques). 'important' :
+        // en mode édition, le bridge force l'affichage des zones d'alertes via une règle
+        // !important — seul un inline important garde la main pour qu'un élément masqué à l'œil
+        // reste réellement masqué (et remonté comme tel).
+        if (pos && typeof pos.hidden === 'boolean') {
+            if (pos.hidden) el.style.setProperty('display', 'none', 'important');
+            else el.style.removeProperty('display');
+        }
+
+        // Taille : de vraies dimensions CSS (pas transform:scale, qui déformerait le texte/les
+        // icônes) — l'élément dispose juste de plus/moins d'espace. Pour .alert-container, sa
+        // propre transform: translate(-50%,-50%) est relative à sa taille courante, donc le
+        // centrage reste correct automatiquement sans rien de spécial ici. Axes indépendants pour
+        // les panneaux à contenu variable (chat...) : redimensionner horizontalement ne doit pas
+        // affecter la hauteur, et inversement. On lève aussi max-width/max-height (ex:
+        // .alert-container a max-width:600px) : sans ça, un override plus grand que le plafond CSS
+        // serait silencieusement ignoré. Les badges à contenu fixe (data-scene-scale-text) suivent
+        // une logique différente, voir plus bas : leurs axes ne sont PAS indépendants, un seul
+        // facteur d'échelle s'applique aux deux pour garder leurs proportions.
+        const hasWidth = pos && typeof pos.width === 'number' && pos.width > 0;
+        const hasHeight = pos && typeof pos.height === 'number' && pos.height > 0;
+        const scaleText = el.dataset.sceneScaleText !== undefined;
+
+        // Badges à contenu court et fixe (horloge, indicateur de pause, bannières, compteur de
+        // viewers, stats de fin...) marqués data-scene-scale-text : contrairement au chat (une
+        // LISTE, où agrandir révèle plus de lignes à taille inchangée), il n'y a ici aucun contenu
+        // supplémentaire à révéler — agrandir la boîte sans faire grossir le texte ne fait
+        // qu'ajouter du vide autour, ce qui ne correspond pas à l'intention du redimensionnement. On
+        // mesure donc sa taille/police NATURELLES juste avant de poser un éventuel override — PAS une
+        // capture mise en cache une seule fois au chargement : ces badges contiennent une icône
+        // FontAwesome chargée depuis un CDN externe, et si elle finit de charger APRÈS le tout
+        // premier rendu, sa largeur réelle grandit après coup ; une capture figée trop tôt aurait
+        // capturé une largeur par défaut trop petite, faussant durablement le ratio (constaté : un
+        // ratio ~2x trop grand, police démesurée). Mesurer à chaque passage (init, config-updated) au
+        // lieu d'une seule fois élimine ce problème de timing.
+        let naturalWidth, naturalHeight, naturalFontSize;
+        if (scaleText) {
+            const had = { w: el.style.width, h: el.style.height, mw: el.style.maxWidth, mh: el.style.maxHeight, fs: el.style.fontSize };
+            el.style.width = el.style.height = el.style.maxWidth = el.style.maxHeight = el.style.fontSize = '';
+            const naturalRect = el.getBoundingClientRect();
+            naturalWidth = naturalRect.width;
+            naturalHeight = naturalRect.height;
+            naturalFontSize = parseFloat(getComputedStyle(el).fontSize);
+            el.style.width = had.w; el.style.height = had.h; el.style.maxWidth = had.mw; el.style.maxHeight = had.mh; el.style.fontSize = had.fs;
+        }
+
+        if (scaleText) {
+            // Contenu fixe et court (pas une liste comme le chat) : la forme de la boîte reste
+            // librement redimensionnable (largeur/hauteur indépendantes, un seul axe touché laisse
+            // l'autre en auto — comme pour les panneaux), mais son CONTENU (icône, texte) doit
+            // suivre en taille pour remplir l'espace, et rester bien centré quelle que soit la
+            // forme obtenue (voir le display:flex + align-items/justify-content ajoutés sur ces
+            // badges en CSS — la boîte n'étant pas flex à l'origine, agrandir sa hauteur laissait
+            // sinon le contenu collé en haut au lieu de se recentrer). Le facteur d'échelle de
+            // police prend le PLUS PETIT des deux ratios connus (seulement l'axe réellement
+            // redimensionné si un seul l'est) pour ne jamais déborder de la dimension la plus
+            // contraignante.
+            if ((hasWidth || hasHeight) && naturalWidth > 0 && naturalHeight > 0 && naturalFontSize > 0) {
+                const widthRatio = hasWidth ? (pos.width / 100 * window.innerWidth) / naturalWidth : null;
+                const heightRatio = hasHeight ? (pos.height / 100 * window.innerHeight) / naturalHeight : null;
+                const scale = (widthRatio !== null && heightRatio !== null)
+                    ? Math.min(widthRatio, heightRatio)
+                    : (widthRatio ?? heightRatio);
+                // naturalWidth/Height viennent de getBoundingClientRect() (boîte de bordure,
+                // padding inclus), mais ces badges n'ont pas box-sizing:border-box — sans le
+                // forcer ici, `width`/`height` ne fixeraient que la boîte de CONTENU, et le
+                // padding fixe en px s'ajouterait par-dessus, faussant le calcul de ratio dès que
+                // padding/bordure ne sont pas négligeables face à la taille cible.
+                el.style.boxSizing = 'border-box';
+                el.style.width = hasWidth ? pos.width + 'vw' : '';
+                el.style.maxWidth = hasWidth ? 'none' : '';
+                el.style.height = hasHeight ? pos.height + 'vh' : '';
+                el.style.maxHeight = hasHeight ? 'none' : '';
+                el.style.fontSize = Math.max(8, naturalFontSize * scale) + 'px';
+            } else {
+                el.style.boxSizing = '';
+                el.style.width = '';
+                el.style.height = '';
+                el.style.maxWidth = '';
+                el.style.maxHeight = '';
+                el.style.fontSize = '';
+            }
+        } else {
+            // Divisé par le zoom : les dimensions stockées sont visuelles (voir plus haut).
+            el.style.width = hasWidth ? (pos.width / zoom) + 'vw' : '';
+            el.style.maxWidth = hasWidth ? 'none' : '';
+            el.style.height = hasHeight ? (pos.height / zoom) + 'vh' : '';
+            el.style.maxHeight = hasHeight ? 'none' : '';
+        }
+    });
+}
+
+/**
+ * Capture, une seule fois par élément et avant toute application d'override, le texte "par
+ * défaut" tel qu'écrit dans le HTML — sert de repli déclaratif dans applyTextOverridesFromConfig()
+ * quand aucun override n'est (ou plus) défini pour cet id. Doit être appelée avant le tout premier
+ * appel à applyTextOverridesFromConfig(), sinon un texte déjà remplacé serait capturé comme si
+ * c'était le défaut.
+ */
+function captureDefaultTexts() {
+    document.querySelectorAll('[data-scene-text]:not([data-scene-custom-text])').forEach((el) => {
+        if (el.dataset.sceneDefaultText === undefined) {
+            el.dataset.sceneDefaultText = el.textContent;
+        }
+    });
+}
+
+/**
+ * Overrides de texte posés depuis l'éditeur de scène pour les éléments statiques marqués
+ * data-scene-text dans le HTML (titre, sous-titre, en-tête de chat...) — cfg.texts[page] =
+ * { textId: "valeur" }. Entièrement déclaratif : une chaîne vide est une valeur légitime (texte
+ * volontairement vidé) et s'applique donc bien, et un id sans override revient au texte par
+ * défaut capturé — nécessaire pour qu'un texte vidé OU réinitialisé se répercute directement sur
+ * tous les overlays déjà ouverts (pas seulement l'aperçu de l'éditeur, qui se recharge lui-même).
+ */
+function applyTextOverridesFromConfig() {
+    const cfg = getOverlayConfig();
+    const pageKey = getThemeKeyFromLocation();
+    const texts = cfg.texts?.[pageKey] || {};
+    document.querySelectorAll('[data-scene-text]:not([data-scene-custom-text])').forEach((el) => {
+        const value = texts[el.dataset.sceneText];
+        el.textContent = (typeof value === 'string') ? value : (el.dataset.sceneDefaultText ?? '');
+    });
+}
+
+/** Familles CSS des deux polices proposées partout dans l'éditeur (textes custom, horloge,
+ * textes intégrés, widgets) — une seule définition pour que les intitulés restent cohérents. */
+function fontFamilyFor(font) {
+    return font === 'inter' ? 'Inter, sans-serif' : "'Baron Neue Black', Inter, sans-serif";
+}
+
+/**
+ * Taille (vh) et police des textes statiques data-scene-text — cfg.textStyles[page] =
+ * { textId: {size?, font?} }, stocké à part du contenu (voir setProfileTextStyle dans store.js).
+ * Entièrement déclaratif comme applyTextOverridesFromConfig() : sans override, la propriété inline
+ * est RETIRÉE (retour au CSS de la page), sinon réinitialiser un texte depuis l'éditeur laisserait
+ * l'ancienne taille collée à l'élément. Les datasets prop* sont lus par reportReady()
+ * (scene-editor-bridge.js) pour que le panneau affiche les valeurs réellement enregistrées.
+ */
+function applyTextStylesFromConfig() {
+    const cfg = getOverlayConfig();
+    const pageKey = getThemeKeyFromLocation();
+    const styles = cfg.textStyles?.[pageKey] || {};
+    document.querySelectorAll('[data-scene-text]:not([data-scene-custom-text])').forEach((el) => {
+        const style = styles[el.dataset.sceneText] || {};
+        const hasSize = typeof style.size === 'number' && style.size > 0;
+        el.style.fontSize = hasSize ? (style.size + 'vh') : '';
+        el.style.fontFamily = style.font ? fontFamilyFor(style.font) : '';
+        el.dataset.propTextSize = hasSize ? String(style.size) : '';
+        el.dataset.propTextFont = style.font || '';
+    });
+}
+
+/**
+ * Éléments ajoutés librement depuis l'éditeur de scène (pas dans le HTML de base) —
+ * cfg.customTexts[page] = { id: {type, top, left, ...} }, type ∈ text/image/box/clock (absent =
+ * text, compat avec les profils créés quand seul le texte existait — d'où le nom de la clé).
+ * Recréés en entier à chaque appel plutôt que diffés un par un : plus simple et cet appel reste
+ * rare (init + config-updated).
+ */
+function renderCustomTextsFromConfig() {
+    const cfg = getOverlayConfig();
+    const pageKey = getThemeKeyFromLocation();
+
+    // Le widget chat est recréé à CHAQUE config-updated (comme tout élément custom) : sans
+    // transplantation, les messages déjà reçus seraient perdus au moindre réglage modifié —
+    // le WebSocket ne rejoue pas l'historique.
+    const previousChat = document.querySelector('[data-scene-custom-text] #chatContainer');
+    const previousChatMessages = previousChat ? previousChat.innerHTML : null;
+
+    document.querySelectorAll('[data-scene-custom-text]').forEach((el) => el.remove());
+
+    const customTexts = cfg.customTexts?.[pageKey];
+    if (!customTexts) return;
+
+    // Style texte partagé par les types text et clock : taille (vh), couleur, police, néon.
+    function applyTextStyle(el, item, defaultSize) {
+        const size = (typeof item.size === 'number' && item.size > 0) ? item.size : defaultSize;
+        const family = fontFamilyFor(item.font);
+        const color = item.color || '#ffffff';
+        el.style.color = color;
+        el.style.font = '600 ' + size + 'vh ' + family;
+        el.style.textShadow = item.glow
+            ? '0 0 10px ' + color + ', 0 0 32px ' + color + ', 0 2px 8px rgba(0, 0, 0, 0.6)'
+            : '0 2px 8px rgba(0, 0, 0, 0.6)';
+        el.dataset.colorValue = item.color || '';
+    }
+
+    // Style de texte des WIDGETS composites (chat, Spotify) : contrairement aux types text/clock
+    // (un seul texte, taille absolue en vh), ces widgets empilent plusieurs niveaux de texte aux
+    // tailles CSS liées entre elles (en-tête/pseudo/message, titre/artiste). On expose donc un
+    // MULTIPLICATEUR consommé en calc() par leur CSS, qui préserve leurs proportions internes,
+    // plutôt qu'une taille absolue qui les écraserait toutes à la même valeur. Distinct de
+    // `scale` (zoom du widget entier, cadre et images compris) : ici seul le texte change.
+    function applyWidgetTextStyle(el, item) {
+        const mult = (typeof item.textScale === 'number' && item.textScale > 0) ? item.textScale / 100 : 1;
+        if (mult !== 1) {
+            el.style.setProperty('--widget-text-scale', String(mult));
+        } else {
+            el.style.removeProperty('--widget-text-scale');
+        }
+        if (item.font) {
+            el.style.setProperty('--widget-font', fontFamilyFor(item.font));
+        } else {
+            el.style.removeProperty('--widget-font');
+        }
+    }
+
+    // Valeurs de style brutes exposées à l'éditeur de scène : le panneau de propriétés n'a pas
+    // accès à la config des overlays, il lit ces datasets via scene-editor-bridge.js
+    // (reportReady). Chaîne vide = pas d'override, l'éditeur affiche alors sa valeur par défaut.
+    function exposeStyleProps(el, item) {
+        el.dataset.propSize = (typeof item.size === 'number') ? String(item.size) : '';
+        el.dataset.propFont = item.font || '';
+        el.dataset.propGlow = item.glow ? '1' : '';
+        el.dataset.propRadius = (typeof item.radius === 'number') ? String(item.radius) : '';
+        el.dataset.propOpacity = (typeof item.opacity === 'number') ? String(item.opacity) : '';
+        el.dataset.propScale = (typeof item.scale === 'number') ? String(item.scale) : '';
+        el.dataset.propTextScale = (typeof item.textScale === 'number') ? String(item.textScale) : '';
+        el.dataset.propSpeed = (typeof item.speed === 'number') ? String(item.speed) : '';
+        // Plateau clavier/souris ("keys") : sans ces datasets, l'éditeur de scène ne peut pas
+        // savoir quelle disposition/quels blocs sont réellement enregistrés — reportReady() dans
+        // scene-editor-bridge.js les relit à chaque resynchro (déclenchée par CHAQUE sauvegarde,
+        // y compris la sienne), donc leur absence faisait revenir les cases à "décoché" juste
+        // après les avoir cochées.
+        el.dataset.propLayout = item.layout || '';
+        el.dataset.propShowFunctionRow = item.showFunctionRow === false ? '0' : '1';
+        el.dataset.propShowDigitRow = item.showDigitRow === false ? '0' : '1';
+        el.dataset.propShowMovement = item.showMovement === false ? '0' : '1';
+        el.dataset.propShowModifiers = item.showModifiers === false ? '0' : '1';
+        el.dataset.propShowArrows = item.showArrows === false ? '0' : '1';
+        el.dataset.propShowMouse = item.showMouse === false ? '0' : '1';
+        // Widgets de scène génériques (statBadge, badge, rotatingText, infoPanel, bottomBar) —
+        // même rôle que les datasets "keys" ci-dessus : ce sont eux que l'éditeur relit pour
+        // afficher les valeurs réellement enregistrées après chaque resynchro.
+        el.dataset.propSource = item.source || '';
+        el.dataset.propIcon = item.icon || '';
+        el.dataset.propPulse = item.pulse ? '1' : '';
+        el.dataset.propInterval = (typeof item.interval === 'number') ? String(item.interval) : '';
+        el.dataset.propTitle1 = item.title1 || '';
+        el.dataset.propTitle2 = item.title2 || '';
+        el.dataset.propTitle3 = item.title3 || '';
+        el.dataset.propShowTrip = item.showTrip === false ? '0' : '1';
+        el.dataset.propShowStats = item.showStats === false ? '0' : '1';
+        el.dataset.propShowCompany = item.showCompany === false ? '0' : '1';
+        el.dataset.propAutoShow = item.autoShow === false ? '0' : '1';
+        el.dataset.propScrolling = item.scrolling || '';
+    }
+
+    for (const [id, item] of Object.entries(customTexts)) {
+        const type = item.type || 'text';
+        const el = document.createElement('div');
+        el.dataset.sceneEl = 'custom:' + id;
+        el.dataset.sceneCustomText = '1';
+        el.dataset.customType = type;
+        // L'état masqué des éléments custom vit dans layout[page]['custom:<id>'] (même mécanisme
+        // que les éléments intégrés — applyLayoutFromConfig() saute volontairement les ids
+        // custom, c'est donc ici qu'il s'applique). display:none plutôt que ne pas rendre du
+        // tout : l'éditeur de scène doit continuer à lister l'élément pour pouvoir le réafficher.
+        // Exception alerts : ce widget est déjà masqué par défaut en CSS (il n'apparaît que le
+        // temps d'une alerte via .show) — on ne pose un display inline que pour le forcer caché.
+        const layoutEntry = cfg.layout?.[pageKey]?.['custom:' + id];
+        const hiddenByLayout = !!layoutEntry?.hidden;
+        // 'important' : en mode édition, le bridge force l'affichage des zones d'alertes en
+        // pointillés via une règle !important — seul un inline important garde la main pour
+        // qu'un élément masqué à l'œil reste réellement masqué (et remonté comme tel).
+        if (hiddenByLayout) el.style.setProperty('display', 'none', 'important');
+        // Échelle visuelle (chat/spotify/keys : leur contenu interne a des tailles CSS fixes, le
+        // zoom est le seul moyen de tout agrandir d'un bloc) — mêmes règles que les éléments
+        // intégrés dans applyLayoutFromConfig() : valeurs stockées visuelles, styles divisés par
+        // le zoom. Pas d'échelle pour les alertes : leur taille découle de la zone (fitAlertBox).
+        const zoom = ((type === 'chat' || type === 'spotify' || type === 'keys') && typeof item.scale === 'number' && item.scale > 0)
+            ? item.scale / 100 : 1;
+        if (zoom !== 1) el.style.zoom = String(zoom);
+        setInverseZoomVar(el, zoom);
+        el.style.position = 'fixed';
+        // Même bornage large que les éléments intégrés (voir clampLayoutPercent).
+        el.style.top = (clampLayoutPercent(item.top ?? 40) / zoom) + 'vh';
+        el.style.left = (clampLayoutPercent(item.left ?? 40) / zoom) + 'vw';
+        // De vraies dimensions CSS (pas transform:scale, qui déformerait le contenu) : l'élément
+        // dispose de plus/moins d'espace et le texte wrappe normalement au lieu d'être étiré.
+        //
+        // Exception 'keys' : sa taille est ENTIÈREMENT intrinsèque (contenu en px fixes × zoom),
+        // l'échelle (%) EST son unique réglage de taille — comme la zone d'alertes dont la taille
+        // est le réglage. Appliquer en plus une largeur/hauteur stockée (en vw/vh, donc constante
+        // quand le zoom, lui, agrandit le contenu) borne le conteneur sans borner ce qu'il
+        // contient : au-delà de ~100% d'échelle le contenu déborde et les blocs flex se
+        // compriment (flex-shrink par défaut), ce qui faisait chevaucher la souris et le clavier.
+        // Les valeurs éventuellement déjà enregistrées par un redimensionnement sont ignorées.
+        const sizeFromContent = (type === 'keys');
+        if (!sizeFromContent) {
+            if (typeof item.width === 'number' && item.width > 0) el.style.width = (item.width / zoom) + 'vw';
+            // Cartes Twitch (objectif, sondage...) : hauteur toujours celle du contenu (le nombre
+            // de choix varie d'un sondage à l'autre), seule la largeur se règle.
+            if (typeof item.height === 'number' && item.height > 0 && !TWITCH_WIDGET_TYPES.includes(type)) el.style.height = (item.height / zoom) + 'vh';
+        }
+
+        if (type === 'text') {
+            el.textContent = item.text || '';
+            // Copie indépendante du texte réel : une fois en mode édition de scène, un badge
+            // d'étiquette est ajouté comme enfant DOM de cet élément (voir addLabel() dans
+            // scene-editor-bridge.js), ce qui pollue el.textContent — ce dataset reste la source
+            // fiable pour retrouver le texte "propre" depuis la sidebar.
+            el.dataset.textValue = item.text || '';
+            applyTextStyle(el, item, 2.4);
+        } else if (type === 'image') {
+            el.dataset.urlValue = item.url || '';
+            if (!el.style.width) el.style.width = '20vw';
+            if (item.url) {
+                const img = document.createElement('img');
+                img.src = item.url;
+                img.alt = '';
+                img.style.display = 'block';
+                img.style.width = '100%';
+                img.style.height = el.style.height ? '100%' : 'auto';
+                img.style.objectFit = 'contain';
+                if (typeof item.radius === 'number') img.style.borderRadius = item.radius + 'px';
+                if (typeof item.opacity === 'number') img.style.opacity = String(item.opacity / 100);
+                el.appendChild(img);
+            } else {
+                // Pas encore d'URL : un cadre visible reste nécessaire pour pouvoir sélectionner/
+                // déplacer l'élément dans l'éditeur — invisible en usage normal serait acceptable,
+                // mais autant montrer clairement qu'une image attend son URL.
+                if (!el.style.height) el.style.height = '12vh';
+                el.style.border = '2px dashed rgba(255, 255, 255, 0.45)';
+                el.style.borderRadius = '8px';
+                if (!hiddenByLayout) el.style.display = 'flex';
+                el.style.alignItems = 'center';
+                el.style.justifyContent = 'center';
+                el.style.color = 'rgba(255, 255, 255, 0.65)';
+                el.style.font = "600 1.8vh Inter, sans-serif";
+                el.textContent = tr('Image — URL à définir');
+            }
+        } else if (type === 'box') {
+            el.dataset.colorValue = item.color || '#a855f7';
+            if (!el.style.width) el.style.width = '20vw';
+            if (!el.style.height) el.style.height = '20vh';
+            el.style.background = item.color || '#a855f7';
+            el.style.borderRadius = (typeof item.radius === 'number' ? item.radius : 8) + 'px';
+            if (typeof item.opacity === 'number') el.style.opacity = String(item.opacity / 100);
+            // Une boîte sert de fond par nature : sous les autres éléments custom par défaut
+            // (voir CUSTOM_BASE_Z), sinon une boîte ajoutée après eux les recouvrirait. Ce
+            // n'est plus qu'un DÉFAUT : le réglage de couche de l'éditeur peut l'inverser.
+        } else if (type === 'clock') {
+            // Le temps vit dans un span enfant dédié : en mode édition, étiquette et poignées de
+            // redimensionnement sont ajoutées comme enfants du même élément — écraser
+            // el.textContent chaque seconde les détruirait.
+            const span = document.createElement('span');
+            span.dataset.sceneClockDisplay = '1';
+            span.textContent = new Date().toLocaleTimeString('fr-FR');
+            el.appendChild(span);
+            applyTextStyle(el, item, 4);
+            ensureCustomClockTicker();
+        } else if (type === 'chat') {
+            // Vrai panneau de chat : même structure/classes que le panneau intégré d'index.html —
+            // addChatMessage() (getElementById('chatContainer')) et le CSS .chat-panel de
+            // overlay-common.css fonctionnent tels quels. Unicité par scène garantie côté store
+            // (SINGLETON_ELEMENT_TYPES). item.text = titre de l'en-tête.
+            el.dataset.textValue = item.text || 'CHAT';
+            applyWidgetTextStyle(el, item);
+            el.className = 'chat-panel';
+            applyPanelBgOpacity(el, '--chat-bg-opacity', item.opacity);
+            if (!el.style.width) el.style.width = '15vw';
+            if (!el.style.height) el.style.height = '40vh';
+            const header = document.createElement('div');
+            header.className = 'chat-header';
+            header.innerHTML = '<i class="fas fa-comments"></i> ';
+            header.appendChild(document.createTextNode(item.text || 'CHAT'));
+            const container = document.createElement('div');
+            container.className = 'chat-container';
+            container.id = 'chatContainer';
+            if (previousChatMessages) container.innerHTML = previousChatMessages;
+            el.appendChild(header);
+            el.appendChild(container);
+        } else if (type === 'chatTicker') {
+            // Bandeau horizontal défilant : même flux que le panneau vertical, mais chaque message
+            // sur UNE ligne (pseudo + texte côte à côte) dans une piste translatée en continu.
+            // Retrouvé par CLASSE et non par id (contrairement à #chatContainer) : plusieurs
+            // bandeaux peuvent coexister, y compris avec un panneau vertical — voir addChatMessage.
+            el.className = 'chat-ticker';
+            applyWidgetTextStyle(el, item);
+            el.dataset.tickerSpeed = String((typeof item.speed === 'number' && item.speed > 0) ? item.speed : 60);
+            if (typeof item.opacity === 'number') {
+                el.style.setProperty('--ticker-bg-opacity', String(item.opacity / 100));
+            }
+            if (!el.style.width) el.style.width = '60vw';
+            const track = document.createElement('div');
+            track.className = 'chat-ticker-track';
+            track.dataset.tickerTrack = '1';
+            el.appendChild(track);
+            ensureChatTickerLoop();
+        } else if (type === 'alerts') {
+            // ZONE d'alertes (follow/sub/raid/bits...) : mêmes ids et structure zone/boîte
+            // qu'index.html, donc showAlert()/fitAlertBox() la pilotent tels quels — l'alerte
+            // s'ajuste au plus grand format qui tient dans le cadre défini dans l'éditeur.
+            // Invisible tant qu'aucune alerte ne joue (.show) ; en mode édition, seul le cadre
+            // est matérialisé (voir scene-editor-bridge.js). Testable depuis /tests ou la barre
+            // d'aperçu de l'éditeur.
+            el.className = 'alert-container';
+            el.id = 'alertContainer';
+            el.dataset.sceneAlertZone = '1';
+            el.innerHTML = '<div class="alert-box" id="alertBox">'
+                + '<img class="alert-media" id="alertMedia" alt="">'
+                + '<div class="alert-icon" id="alertIcon"><i class="fas fa-heart"></i></div>'
+                + '<div class="alert-body">'
+                + '<div class="alert-title" id="alertTitle"></div>'
+                + '<div class="alert-username" id="alertUsername"></div>'
+                + '<div class="alert-message" id="alertMessage"></div>'
+                + '<div class="alert-amount" id="alertAmount" style="display: none;"></div>'
+                + '</div>'
+                + '</div>';
+        } else if (type === 'spotify') {
+            // Morceau Spotify en cours de lecture — pas de singleton (contrairement à chat/alerts,
+            // aucun id DOM partagé n'est nécessaire) : plusieurs widgets peuvent coexister sur une
+            // même scène, tous mis à jour ensemble par applySpotifyTrack() (voir plus bas), appelée
+            // au premier chargement (fetch /api/spotify/now-playing) et à chaque message WebSocket
+            // 'spotify-track-updated'. item.color = couleur d'accent du titre/de la bordure.
+            el.className = 'spotify-widget';
+            el.dataset.colorValue = item.color || '#1db954';
+            el.style.setProperty('--spotify-accent', item.color || '#1db954');
+            applyWidgetTextStyle(el, item);
+            applyPanelBgOpacity(el, '--spotify-bg-opacity', item.opacity);
+            if (!el.style.width) el.style.width = '22vw';
+            el.innerHTML = '<img class="spotify-art" data-spotify-art alt="">'
+                + '<div class="spotify-info">'
+                + '<div class="spotify-title" data-spotify-title>Spotify</div>'
+                + '<div class="spotify-artist" data-spotify-artist>' + tr('Rien en cours de lecture') + '</div>'
+                + '</div>';
+            applySpotifyTrackTo(el, lastSpotifyTrack);
+        } else if (type === 'keys') {
+            // Plateau clavier/souris façon NohBoard (voir electron/inputCapture.js) — pas de
+            // singleton (même logique que spotify) : tous les widgets .keys-widget de la page
+            // reçoivent chaque appui/relâchement via setKeyState() sur le message WebSocket
+            // 'input-key'. Contrairement à Spotify, rien à hydrater au chargement : le plateau est
+            // dessiné une fois, entièrement "relâché", et les cases s'allument/s'éteignent en
+            // direct — aucun état à retrouver après un rechargement de page.
+            el.className = 'keys-widget';
+            el.dataset.colorValue = item.color || '#f59e0b';
+            el.style.setProperty('--keys-accent', item.color || '#f59e0b');
+            // Réutilise le champ générique `opacity` (déjà géré par exposeStyleProps/PATCH pour
+            // image/box) plutôt qu'un champ dédié — évite de repasser par toute la plomberie
+            // (exposeStyleProps + reportReady + whitelist PATCH) pour un simple pourcentage.
+            const bgOpacity = (typeof item.opacity === 'number' ? item.opacity : 35) / 100;
+            el.style.setProperty('--keys-bg-opacity', String(bgOpacity));
+
+            const blocks = buildKeysBlocks(item.layout === 'qwerty' ? 'qwerty' : 'azerty');
+            const mainRows = [];
+            if (item.showFunctionRow !== false) mainRows.push(...blocks.functionRow);
+            if (item.showDigitRow !== false) mainRows.push(...blocks.digitRow);
+            if (item.showMovement !== false) mainRows.push(...blocks.movement);
+            if (item.showModifiers !== false) mainRows.push(...blocks.modifiers);
+            if (mainRows.length > 0) {
+                const main = buildKeysRows(mainRows);
+                main.classList.add('keys-main');
+                el.appendChild(main);
+            }
+
+            if (item.showArrows !== false) {
+                const arrows = buildKeysRows(KEYS_ARROWS_ROWS);
+                arrows.classList.add('keys-arrows');
+                el.appendChild(arrows);
+            }
+
+            if (item.showMouse !== false) {
+                const mouse = document.createElement('div');
+                mouse.className = 'keys-mouse';
+                // Boutons de pouce en frères de .mouse-body (pas enfants) : .mouse-body garde son
+                // overflow:hidden (nécessaire pour que les coins des zones clic/molette restent
+                // coupés par le border-radius du corps) — .keys-mouse, sans overflow, les laisse
+                // dépasser légèrement sur le côté gauche pour un rendu intégré au corps de la
+                // souris plutôt qu'un bloc séparé à côté (positionnement en CSS, voir .mouse-thumb-*).
+                // Avant (bouton 5) en haut, arrière (bouton 4) en bas.
+                mouse.innerHTML = '<div class="mouse-body">'
+                    + '<div class="mouse-btn" data-key-label="Clic gauche"></div>'
+                    + '<div class="mouse-wheel" data-key-label="Clic molette"></div>'
+                    + '<div class="mouse-btn" data-key-label="Clic droit"></div>'
+                    + '</div>'
+                    + '<div class="mouse-thumb-btn mouse-thumb-top" data-key-label="Bouton avant"></div>'
+                    + '<div class="mouse-thumb-btn mouse-thumb-bottom" data-key-label="Bouton arrière"></div>';
+                el.appendChild(mouse);
+            }
+        } else if (type === 'statBadge') {
+            // Badge de donnée live (viewers, follows, subs, messages, durée...) : l'équivalent
+            // libre de .viewers-waiting (page Pause) et des compteurs de .stream-stats (page Fin),
+            // mais posable sur n'importe quelle scène. La valeur est remplie par le sondage partagé
+            // /stream-stats (ensureStreamStatsPolling) — data-stat-source est ce qui rattache le
+            // widget à sa donnée.
+            el.className = 'stat-badge';
+            el.dataset.statSource = item.source || 'viewers';
+            applySceneWidgetStyle(el, item, 2.6);
+            el.innerHTML = sceneIconHtml(item.icon || 'users')
+                + '<span class="stat-value" data-stat-value>---</span>'
+                + '<span data-stat-label></span>';
+            el.querySelector('[data-stat-label]').textContent = item.text || '';
+            el.dataset.textValue = item.text || '';
+            applyStreamStatsToWidgets();
+            ensureStreamStatsPolling();
+        } else if (type === 'badge') {
+            // Badge icône + libellé (équivalent de .waiting-indicator / .pause-indicator /
+            // .back-soon-banner) : purement décoratif, aucune donnée derrière.
+            el.className = 'scene-badge' + (item.pulse ? ' scene-badge-pulse' : '');
+            applySceneWidgetStyle(el, item, 2.6);
+            el.innerHTML = sceneIconHtml(item.icon || 'pause') + '<span data-badge-label></span>';
+            el.querySelector('[data-badge-label]').textContent = item.text || '';
+            el.dataset.textValue = item.text || '';
+        } else if (type === 'rotatingText') {
+            // Messages affichés en rotation avec fondu (équivalent des messages de pause) — un
+            // message par ligne dans la propriété "Messages". Le premier est posé tout de suite
+            // pour ne pas laisser un vide jusqu'à la première rotation.
+            el.className = 'rotating-text';
+            applySceneWidgetStyle(el, item, 2.2);
+            el.style.color = item.color || '#ffffff';
+            const messages = String(item.text || '').split('\n').filter((m) => m.trim());
+            el.dataset.messages = messages.join('\n');
+            el.dataset.rotateInterval = String((typeof item.interval === 'number' && item.interval > 0) ? item.interval : 4);
+            el.dataset.rotateIndex = '0';
+            el.dataset.rotateElapsed = '0';
+            el.dataset.textValue = item.text || '';
+            if (!el.style.width) el.style.width = '40vw';
+            el.innerHTML = '<span data-rotating-value></span>';
+            el.querySelector('[data-rotating-value]').textContent = messages[0] || '';
+            ensureSceneTextRotation();
+        } else if (type === 'infoPanel') {
+            // Panneau d'infos Trucky (équivalent de .left-panel) : sections activables une à une,
+            // titres libres. Les valeurs viennent de /api/info-panel, partagées par tous les
+            // panneaux de la page (applyInfoPanelDataToWidgets).
+            el.className = 'info-panel-widget';
+            applySceneWidgetStyle(el, item, 1.5);
+            if (!el.style.width) el.style.width = '22vw';
+            const section = (title, icon, rows) => '<div class="ipw-section">'
+                + '<div class="ipw-title">' + sceneIconHtml(icon) + '<span>' + escapeHtml(title) + '</span></div>'
+                + rows.map(([label, key]) => '<div class="ipw-row"><span class="ipw-label">' + escapeHtml(tr(label))
+                    + '</span><span class="ipw-value" data-ipw="' + key + '">...</span></div>').join('')
+                + '</div>';
+            let html = '';
+            if (item.showTrip !== false) {
+                html += section(item.title1 || tr('TRAJET ACTUEL'), 'truck',
+                    [['Destination', 'destination'], ['Distance', 'distance'], ['Cargaison', 'cargo']]);
+            }
+            if (item.showStats !== false) {
+                html += section(item.title2 || 'STATS', 'chart',
+                    [['Rank VTC', 'rank'], ['Km parcourus', 'distanceVTC'], ['Trajets accomplis', 'completedTrips']]);
+            }
+            if (item.showCompany !== false) {
+                html += section(item.title3 || 'VTC', 'users',
+                    [['Chauffeurs', 'drivers'], ['Recrutements', 'recruitments']]);
+            }
+            el.innerHTML = html;
+            if (item.autoShow !== false) {
+                el.dataset.autoShow = '1';
+                el.classList.add('scene-auto-hidden');
+                ensureSceneAutoShow();
+            }
+            if (lastInfoPanelData) applyInfoPanelDataToWidgets();
+            else fetchInfoPanelData();
+        } else if (type === 'bottomBar') {
+            // Bandeau bas (équivalent de .bottom-bar) : un item par ligne, préfixe "icone|"
+            // optionnel (clés de SCENE_ICONS), plus un texte défilant facultatif.
+            el.className = 'bottom-bar-widget';
+            applySceneWidgetStyle(el, item, 1.6);
+            if (!el.style.width) el.style.width = '60vw';
+            const items = String(item.text || '').split('\n').filter((l) => l.trim()).map((line) => {
+                const sep = line.indexOf('|');
+                const iconKey = sep >= 0 ? line.slice(0, sep).trim() : '';
+                const label = sep >= 0 ? line.slice(sep + 1).trim() : line.trim();
+                return '<div class="bbw-item">' + sceneIconHtml(iconKey) + '<span>' + escapeHtml(label) + '</span></div>';
+            }).join('');
+            el.innerHTML = '<div class="bbw-items">' + items + '</div>'
+                + (item.scrolling ? '<div class="bbw-scroll"><div class="bbw-scroll-track">' + escapeHtml(item.scrolling) + '</div></div>' : '');
+            el.dataset.textValue = item.text || '';
+            if (item.autoShow !== false) {
+                el.dataset.autoShow = '1';
+                el.classList.add('scene-auto-hidden');
+                ensureSceneAutoShow();
+            }
+        } else if (type === 'widget') {
+            // Widget personnalisé (importé depuis la page Widgets) : sa page tourne dans un cadre
+            // isolé — un widget buggé ne peut rien casser d'autre. Ses réglages lui sont passés
+            // dans l'URL (#...), lus par js/electrum-widget.js.
+            el.className = 'custom-widget';
+            if (!el.style.width) el.style.width = '25vw';
+            if (!el.style.height) el.style.height = '20vh';
+            const editing = new URLSearchParams(location.search).get('sceneEditor') === '1';
+            const frame = document.createElement('iframe');
+            frame.src = '/widgets/' + encodeURIComponent(item.widgetId || '') + '/?page=' + encodeURIComponent(pageKey)
+                + '&element=' + encodeURIComponent(id) + (editing ? '&preview=1' : '')
+                + '#' + encodeURIComponent(JSON.stringify(item.settings || {}));
+            // Code tiers : isolé (origine à part), il ne peut ni modifier les réglages, ni ouvrir
+            // de fenêtre, ni naviguer la scène.
+            frame.setAttribute('sandbox', 'allow-scripts');
+            frame.setAttribute('allowtransparency', 'true');
+            frame.setAttribute('scrolling', 'no');
+            frame.style.cssText = 'width:100%;height:100%;border:0;background:transparent;display:block;color-scheme:normal;';
+            el.appendChild(frame);
+            el.dataset.widgetName = item.name || item.widgetId || '';
+            el.dataset.propWidget = item.widgetId || '';
+            el.dataset.propSettings = JSON.stringify(item.settings || {});
+        } else if (TWITCH_WIDGET_TYPES.includes(type)) {
+            // Objectif / sondage / prédiction / hype train (js/twitch-widgets.js) : invisibles tant
+            // que rien n'est en cours sur Twitch (classe .tw-idle), remplis par
+            // renderTwitchWidgets() au chargement (/api/interactions) et à chaque message
+            // WebSocket 'interaction'. Couleur d'accent : celle de l'élément, sinon la couleur
+            // principale du thème de la page.
+            el.className = 'tw-widget tw-card';
+            applySceneWidgetStyle(el, item, 2);
+            const theme = cfg.themes?.[pageKey] || cfg.themes?.index || {};
+            if (globalThis.TwitchWidgets) TwitchWidgets.setAccent(el, item.color || theme.primary || '#a855f7');
+            el.style.textShadow = '';
+            if (!el.style.width) el.style.width = type === 'goal' ? '36vw' : '24vw';
+            renderTwitchWidget(el);
+            ensureTwitchInteractions();
+        }
+        // Après les branches par type, pour que l'ordre choisi dans l'éditeur ait le dernier mot.
+        applyStackOrder(el, layoutEntry, CUSTOM_BASE_Z[type] ?? CUSTOM_BASE_Z_DEFAULT);
+        exposeStyleProps(el, item);
+        document.body.appendChild(el);
+    }
+
+    // Signale au bridge d'édition (scene-editor-bridge.js) que de nouveaux éléments viennent
+    // d'apparaître, pour qu'il les rende déplaçables/éditables — lui seul écoute cet événement,
+    // aucun effet en usage normal (OBS, navigateur direct).
+    window.dispatchEvent(new CustomEvent('scene-custom-texts-rendered'));
+}
+
+/**
+ * Réglages de scène (cfg.scenes[pageKey] = {background, effects, name?}) : fond de page
+ * (thème / transparent / couleur / dégradé) et halos animés d'ambiance. Valent pour TOUTES les
+ * pages — intégrées comprises, leur entrée étant créée au premier réglage depuis l'éditeur ;
+ * sans réglage, une page intégrée garde son fond de thème ('theme') et une scène personnalisée
+ * reste transparente. Les EFFETS (particules, étoiles...) ne sont pas gérés ici mais à la
+ * création dans initCommonOverlay() — comme pour les réglages d'animation globaux, un changement
+ * d'effet ne s'applique donc qu'au prochain rechargement de la page (l'éditeur de scène recharge
+ * son aperçu lui-même).
+ */
+function applySceneSettingsFromConfig() {
+    const cfg = getOverlayConfig();
+    const pageKey = getThemeKeyFromLocation();
+    const isBuiltin = OVERLAY_BUILTIN_PAGES.includes(pageKey);
+    const bg = cfg.scenes?.[pageKey]?.background || {};
+    const mode = bg.mode || (isBuiltin ? 'theme' : 'transparent');
+
+    if (mode === 'color') {
+        document.body.style.background = bg.color || '#0f172a';
+    } else if (mode === 'gradient') {
+        document.body.style.background = 'linear-gradient(135deg, ' + (bg.color || '#0f172a') + ', ' + (bg.color2 || '#1e293b') + ')';
+    } else if (mode === 'transparent') {
+        document.body.style.background = 'transparent';
+    } else {
+        // 'theme' : retour au fond CSS de la page (var(--theme-bg), overlay-common.css).
+        document.body.style.background = '';
+    }
+
+    // Les halos .background-animation/.breathing-effect n'ont de sens que sur un fond opaque —
+    // sur un fond transparent ils peindraient un dégradé radial par-dessus le jeu. En mode
+    // 'theme', on rend la main au CSS de la page (certaines pages intégrées en ont d'origine).
+    document.querySelectorAll('.background-animation, .breathing-effect').forEach((el) => {
+        el.style.display = (mode === 'color' || mode === 'gradient') ? '' : (mode === 'transparent' ? 'none' : '');
+    });
+}
+
+// Un seul ticker partagé pour toutes les horloges custom de la page, démarré à la première
+// horloge rencontrée et jamais arrêté (inoffensif si les horloges disparaissent : le sélecteur
+// ne matche alors plus rien).
+let customClockTickerStarted = false;
+function ensureCustomClockTicker() {
+    if (customClockTickerStarted) return;
+    customClockTickerStarted = true;
+    setInterval(() => {
+        document.querySelectorAll('[data-scene-clock-display]').forEach((el) => {
+            el.textContent = new Date().toLocaleTimeString('fr-FR');
+        });
+    }, 1000);
+}
+
+// ========== WIDGETS DE SCÈNE GÉNÉRIQUES ==========
+// Équivalents libres des blocs jusque-là figés dans le HTML des 4 pages intégrées : badge de
+// donnée live (viewers/follows/subs/messages/durée), badge icône+libellé, messages rotatifs,
+// panneau d'infos Trucky et bandeau bas. Ils rendent ces blocs posables sur N'IMPORTE quelle
+// scène — c'est ce qui permet de reconstruire une page intégrée entièrement en configuration.
+
+/** Icônes proposées dans l'éditeur (clé stable en config -> classe FontAwesome au rendu). */
+const SCENE_ICONS = {
+    none: '',
+    users: 'fas fa-users', heart: 'fas fa-heart', star: 'fas fa-star',
+    comments: 'fas fa-comments', clock: 'fas fa-clock', hourglass: 'fas fa-hourglass-half',
+    pause: 'fas fa-pause', play: 'fas fa-play', gamepad: 'fas fa-gamepad',
+    truck: 'fas fa-truck', chart: 'fas fa-chart-line', bell: 'fas fa-bell',
+    arrow: 'fas fa-arrow-right', coffee: 'fas fa-mug-hot', wrench: 'fas fa-wrench',
+    twitch: 'fab fa-twitch', discord: 'fab fa-discord', youtube: 'fab fa-youtube',
+    globe: 'fas fa-globe', instagram: 'fab fa-instagram', tiktok: 'fab fa-tiktok'
+};
+
+function sceneIconHtml(key) {
+    const cls = SCENE_ICONS[key];
+    return cls ? '<i class="' + cls + '"></i>' : '';
+}
+
+/**
+ * Style commun des widgets : tout leur CSS est en `em`, donc poser une font-size (la propriété
+ * "Taille (vh)") met à l'échelle le widget ENTIER — marges, icône, bordure, arrondi compris —
+ * sans le zoom CSS utilisé par le chat/Spotify (qui, lui, doit exister parce que leur contenu a
+ * des tailles fixes en px). --widget-accent porte la couleur choisie, consommée par les icônes et
+ * les valeurs ; l'opacité du fond passe par le mécanisme commun (applyPanelBgOpacity).
+ */
+function applySceneWidgetStyle(el, item, defaultSize) {
+    const size = (typeof item.size === 'number' && item.size > 0) ? item.size : defaultSize;
+    el.style.fontSize = size + 'vh';
+    // Police posée en VARIABLE et seulement si l'utilisateur en a choisi une : sans override,
+    // chaque widget garde le défaut de son CSS (Baron Neue pour les badges, comme les indicateurs
+    // des pages intégrées — Inter pour le panneau d'infos et le bandeau, dont le contenu est du
+    // texte de lecture que la casse forcée de Baron rendrait pénible).
+    if (item.font) el.style.setProperty('--widget-font', fontFamilyFor(item.font));
+    else el.style.removeProperty('--widget-font');
+    const color = item.color || '#a855f7';
+    el.style.setProperty('--widget-accent', color);
+    el.dataset.colorValue = item.color || '';
+    if (item.glow) {
+        el.style.textShadow = '0 0 0.25em ' + color + ', 0 0.05em 0.2em rgba(0, 0, 0, 0.6)';
+    } else {
+        el.style.textShadow = '';
+    }
+    applyPanelBgOpacity(el, '--widget-bg-opacity', item.opacity);
+}
+
+/**
+ * Dernières stats de stream connues (/stream-stats : viewers, follows, subs, messages, durée).
+ * Twitch ne pousse pas ces compteurs en continu — c'est le serveur qui les agrège (EventSub +
+ * polling viewers, voir StreamStatsManager) — d'où ce sondage périodique côté page. Le premier
+ * sondage part dès qu'un badge existe, pour ne pas laisser un "---" à l'écran en attendant.
+ */
+let lastStreamStats = null;
+let streamStatsPollingStarted = false;
+
+function formatStreamStat(source, stats) {
+    if (!stats) return '---';
+    if (source === 'duration') {
+        const totalSec = Math.floor((stats.streamDurationMs || 0) / 1000);
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        return h > 0 ? (h + 'h ' + m + 'm') : (m + 'm ' + (totalSec % 60) + 's');
+    }
+    if (source === 'game') return stats.game || '---';
+    if (source === 'title') return stats.title || '---';
+    const bySource = {
+        viewers: stats.viewerCount,
+        followers: stats.follows,
+        subs: stats.subscribers,
+        messages: stats.chatMessages
+    };
+    const value = bySource[source];
+    return (typeof value === 'number') ? String(value) : '---';
+}
+
+function applyStreamStatsToWidgets() {
+    document.querySelectorAll('[data-stat-source]').forEach((el) => {
+        const target = el.querySelector('[data-stat-value]');
+        if (target) target.textContent = formatStreamStat(el.dataset.statSource, lastStreamStats);
+    });
+}
+
+function ensureStreamStatsPolling() {
+    if (streamStatsPollingStarted) return;
+    streamStatsPollingStarted = true;
+    const poll = () => fetch('/stream-stats')
+        .then((r) => r.json())
+        .then((data) => { lastStreamStats = data; applyStreamStatsToWidgets(); })
+        .catch(() => { /* best-effort : un serveur momentanément indisponible laisse la valeur précédente */ });
+    poll();
+    // Plancher à 5s : le réglage vient de /settings (stats.updateInterval) et un utilisateur
+    // pourrait y saisir une valeur absurde, qui martèlerait le serveur à chaque page ouverte.
+    setInterval(poll, Math.max(5000, getOverlayConfig().stats?.updateInterval ?? 30000));
+}
+
+/**
+ * Rotation des messages (widget rotatingText). Un seul intervalle d'1s pour toute la page : chaque
+ * widget compte son propre temps écoulé dans un dataset, ce qui permet des intervalles différents
+ * par widget sans multiplier les timers, et survit à la recréation des éléments (le sélecteur est
+ * réévalué à chaque tick — voir ensureCustomClockTicker, même idiome).
+ */
+let sceneRotationStarted = false;
+function ensureSceneTextRotation() {
+    if (sceneRotationStarted) return;
+    sceneRotationStarted = true;
+    setInterval(() => {
+        document.querySelectorAll('.rotating-text').forEach((el) => {
+            const messages = (el.dataset.messages || '').split('\n').filter((m) => m.trim());
+            if (messages.length < 2) return;
+            const every = Math.max(1, parseFloat(el.dataset.rotateInterval) || 4);
+            const elapsed = (parseFloat(el.dataset.rotateElapsed) || 0) + 1;
+            if (elapsed < every) {
+                el.dataset.rotateElapsed = String(elapsed);
+                return;
+            }
+            el.dataset.rotateElapsed = '0';
+            const next = ((parseInt(el.dataset.rotateIndex, 10) || 0) + 1) % messages.length;
+            el.dataset.rotateIndex = String(next);
+            // Fondu sortant puis entrant : le délai doit rester aligné sur la transition CSS de
+            // .rotating-text (0.4s), sinon le texte change à l'écran avant d'avoir disparu.
+            el.classList.add('rotating-fade');
+            setTimeout(() => {
+                const target = el.querySelector('[data-rotating-value]');
+                if (target) target.textContent = messages[next];
+                el.classList.remove('rotating-fade');
+            }, 400);
+        });
+    }, 1000);
+}
+
+/**
+ * Panneau d'infos (Trucky) : mêmes données que le panneau intégré de la page Jeu, via
+ * /api/info-panel. Les valeurs sont posées sur tous les widgets de la page à la fois — plusieurs
+ * panneaux peuvent coexister (pas de singleton).
+ */
+let lastInfoPanelData = null;
+
+function applyInfoPanelDataToWidgets() {
+    const d = lastInfoPanelData;
+    if (!d) return;
+    const thousands = (v) => Math.round(Number(v) || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    const values = {
+        destination: (d.lastJob?.source_city_name || '?') + ' → ' + (d.lastJob?.destination_city_name || '?'),
+        distance: (d.lastJob?.planned_distance_km ?? '?') + ' km',
+        cargo: (d.lastJob?.cargo_name || '?') + ' (' + (d.lastJob?.cargo_mass_t ?? '?') + 't)',
+        rank: d.userData?.role?.name || tr('Inconnu'),
+        distanceVTC: thousands(d.companyStats?.distance_driven_on_job_km) + ' km',
+        completedTrips: thousands(d.companyStats?.jobs_delivered),
+        drivers: thousands(d.companyDetails?.members_count),
+        recruitments: d.companyDetails?.recruitment === 'open' ? tr('🟢 Ouverts') : tr('🔴 Fermés')
+    };
+    document.querySelectorAll('.info-panel-widget [data-ipw]').forEach((el) => {
+        const value = values[el.dataset.ipw];
+        if (value !== undefined) el.textContent = value;
+    });
+}
+
+function fetchInfoPanelData() {
+    return fetch('/api/info-panel')
+        .then((r) => r.json())
+        .then((data) => { lastInfoPanelData = data; applyInfoPanelDataToWidgets(); })
+        .catch(() => { /* Trucky indisponible/désactivé : le panneau garde ses valeurs de repli */ });
+}
+
+/**
+ * Cycle d'apparition périodique des widgets panneau/bandeau (case "Apparition périodique"),
+ * repris des réglages panels.left/panels.bottom déjà utilisés par les pages intégrées : le widget
+ * reste masqué, apparaît toutes les X minutes pendant Y secondes, puis disparaît.
+ * Masquage par CLASSE (jamais en style inline) pour ne pas écraser le `display:none !important`
+ * de l'œil "masquer" de l'éditeur — un widget masqué à l'œil le reste, cycle ou pas.
+ */
+function sceneAutoWidgets(type) {
+    return document.querySelectorAll('[data-custom-type="' + type + '"][data-auto-show="1"]');
+}
+
+function showSceneAutoWidget(type, force = false) {
+    const cfg = getOverlayConfig();
+    const panelCfg = type === 'infoPanel' ? cfg.panels?.left : cfg.panels?.bottom;
+    // `force` : déclenchement manuel (page /tests, plugin Stream Deck) — doit s'afficher même si
+    // le panneau est désactivé dans les réglages, comme pour les pages intégrées.
+    if (!force && panelCfg?.enabled === false) return;
+    const widgets = sceneAutoWidgets(type);
+    if (widgets.length === 0) return;
+    if (type === 'infoPanel') fetchInfoPanelData();
+    widgets.forEach((el) => el.classList.remove('scene-auto-hidden'));
+    const duration = panelCfg?.duration ?? (type === 'infoPanel' ? 15000 : 20000);
+    setTimeout(() => {
+        // Re-sélection (et pas la liste capturée) : un config-updated a pu recréer les éléments
+        // entre-temps — masquer les anciens ne servirait à rien, ils ne sont plus dans le DOM.
+        sceneAutoWidgets(type).forEach((el) => el.classList.add('scene-auto-hidden'));
+    }, duration);
+}
+
+let sceneAutoShowStarted = false;
+function ensureSceneAutoShow() {
+    if (sceneAutoShowStarted) return;
+    sceneAutoShowStarted = true;
+    const cfg = getOverlayConfig();
+    const plan = (type, panelCfg, defFirst, defInterval) => {
+        setTimeout(() => showSceneAutoWidget(type), panelCfg?.firstDelay ?? defFirst);
+        setInterval(() => showSceneAutoWidget(type), panelCfg?.interval ?? defInterval);
+    };
+    plan('infoPanel', cfg.panels?.left, 30000, 300000);
+    plan('bottomBar', cfg.panels?.bottom, 10000, 180000);
+}
+
+/**
+ * Objectif, sondage, prédiction, hype train en cours (éléments de scène du même nom). Tenu à jour
+ * par le WebSocket ('interaction') et chargé une fois depuis /api/interactions dès qu'un de ces
+ * éléments existe sur la page. kind -> { data, phase } ; absent = rien en cours.
+ */
+const TWITCH_WIDGET_TYPES = ['goal', 'poll', 'prediction', 'hypetrain'];
+const twitchInteractions = {};
+const twitchInteractionTimers = {};
+let twitchInteractionsLoaded = false;
+
+function renderTwitchWidget(el) {
+    const current = twitchInteractions[el.dataset.customType];
+    if (!current || !globalThis.TwitchWidgets) {
+        el.classList.add('tw-idle');
+        el.innerHTML = '';
+    } else {
+        el.classList.remove('tw-idle');
+        el.innerHTML = TwitchWidgets.html(el.dataset.customType, current.data, current.phase);
+    }
+    // En mode édition, le bridge ajoute étiquette et poignées dans l'élément : innerHTML vient
+    // de les effacer, on les lui redemande.
+    window.dispatchEvent(new CustomEvent('scene-widget-refreshed', { detail: el }));
+}
+
+function renderTwitchWidgets(kind) {
+    document.querySelectorAll('.tw-widget[data-custom-type="' + kind + '"]').forEach(renderTwitchWidget);
+}
+
+function setTwitchInteraction(kind, data, phase) {
+    if (!TWITCH_WIDGET_TYPES.includes(kind)) return;
+    clearTimeout(twitchInteractionTimers[kind]);
+    const entry = data ? { data, phase } : null;
+    if (entry) twitchInteractions[kind] = entry;
+    else delete twitchInteractions[kind];
+    renderTwitchWidgets(kind);
+    // Fini : le résultat reste affiché un moment, puis l'élément disparaît.
+    if (entry && phase === 'end') {
+        const linger = globalThis.TwitchWidgets?.LINGER?.[kind] ?? 15000;
+        twitchInteractionTimers[kind] = setTimeout(() => {
+            if (twitchInteractions[kind] === entry) setTwitchInteraction(kind, null);
+        }, linger);
+    }
+}
+
+/**
+ * Rendu des cartes (js/twitch-widgets.js + css/twitch-widgets.css) : normalement chargé par la
+ * page, mais une page restée en cache d'avant son ajout (fenêtre de l'app, OBS) ne l'a pas — on le
+ * charge alors à la demande, puis on redessine les cartes.
+ */
+let twitchWidgetsLibRequested = false;
+function ensureTwitchWidgetsLib() {
+    if (globalThis.TwitchWidgets || twitchWidgetsLibRequested) return;
+    twitchWidgetsLibRequested = true;
+    if (!document.querySelector('link[href$="twitch-widgets.css"]')) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = '/css/twitch-widgets.css';
+        document.head.appendChild(link);
+    }
+    const script = document.createElement('script');
+    script.src = '/js/twitch-widgets.js';
+    script.onload = () => {
+        const cfg = getOverlayConfig();
+        const theme = cfg.themes?.[getThemeKeyFromLocation()] || cfg.themes?.index || {};
+        document.querySelectorAll('.tw-widget').forEach((el) => {
+            TwitchWidgets.setAccent(el, el.dataset.colorValue || theme.primary || '#a855f7');
+            renderTwitchWidget(el);
+        });
+    };
+    document.head.appendChild(script);
+}
+
+function ensureTwitchInteractions() {
+    ensureTwitchWidgetsLib();
+    if (twitchInteractionsLoaded) return;
+    twitchInteractionsLoaded = true;
+    fetch('/api/interactions').then((r) => r.ok ? r.json() : null).then((state) => {
+        if (!state) return;
+        TWITCH_WIDGET_TYPES.forEach((kind) => {
+            if (state[kind] && !twitchInteractions[kind]) setTwitchInteraction(kind, state[kind], 'progress');
+        });
+    }).catch(() => {});
+}
+
+/**
+ * Dernier morceau Spotify connu, tenu à jour par le WebSocket ('spotify-track-updated', voir
+ * initWebSocket) et consulté par renderCustomTextsFromConfig() à chaque (re)création d'un widget
+ * (ex: après un config-updated) pour qu'il n'affiche jamais un état "vide" pendant les quelques
+ * secondes qui séparent le rendu du prochain poll serveur. `null` = rien en cours de lecture (état
+ * légitime, pas une absence de données).
+ */
+let lastSpotifyTrack = null;
+
+function applySpotifyTrackTo(el, track) {
+    const art = el.querySelector('[data-spotify-art]');
+    const title = el.querySelector('[data-spotify-title]');
+    const artist = el.querySelector('[data-spotify-artist]');
+    if (!art || !title || !artist) return;
+
+    // N'affiche le widget QUE si une musique joue réellement (pas en pause, pas à l'arrêt) —
+    // masqué en usage normal ; forcé visible en mode édition (voir le CSS
+    // [data-custom-type="spotify"] injecté par scene-editor-bridge.js) pour rester positionnable
+    // même quand rien ne joue, fillWidgetPreview() y affichant alors un exemple à la place.
+    //
+    // Par CLASSE et non par el.style.display : l'état "masqué" de l'éditeur de scène (œil) est un
+    // inline `display:none !important` posé par renderCustomTextsFromConfig(), et écrire
+    // el.style.display ici l'effaçait — le widget réapparaissait dès qu'une musique jouait, et en
+    // édition le `display:flex !important` du bridge reprenait le dessus sur le `none` sans
+    // priorité écrit ici, faisant "revenir" l'œil à visible juste après le clic. Une classe ne
+    // touche pas au style inline, qui reste donc toujours prioritaire.
+    el.classList.toggle('spotify-idle', !(track && track.isPlaying));
+    if (track && track.isPlaying) {
+        title.textContent = track.title;
+        artist.textContent = track.artist;
+        if (track.albumArt) {
+            art.src = track.albumArt;
+            // 'block', pas '' : la classe .spotify-art a display:none par défaut (masquée tant
+            // qu'aucune pochette n'est connue) — effacer le style inline ne ferait que retomber
+            // sur cette règle de classe, laissant l'image invisible malgré le src posé.
+            art.style.display = 'block';
+        } else {
+            art.removeAttribute('src');
+            art.style.display = 'none';
+        }
+    } else {
+        title.textContent = 'Spotify';
+        artist.textContent = tr('Rien en cours de lecture');
+        art.removeAttribute('src');
+        art.style.display = 'none';
+    }
+}
+
+/** Met à jour TOUS les widgets Spotify de la page (il n'y a pas de singleton, voir store.js). */
+function applySpotifyTrack(track) {
+    lastSpotifyTrack = track;
+    document.querySelectorAll('.spotify-widget').forEach((el) => applySpotifyTrackTo(el, track));
+}
+
+/** État initial au chargement, avant le premier message WebSocket — best-effort. */
+async function fetchInitialSpotifyTrack() {
+    try {
+        const res = await fetch('/api/spotify/now-playing');
+        const data = await res.json();
+        applySpotifyTrack(data.track || null);
+    } catch (error) {
+        // best-effort : un widget resterait alors sur son état "vide" par défaut jusqu'au
+        // prochain message WebSocket, sans casser le reste de la page.
+    }
+}
+
+// Disposition façon "cluster gaming" (NohBoard) : uniquement les touches de ALLOWED_KEYS côté
+// electron/inputCapture.js, à peu près à leur emplacement physique réel — pas une vraie grille
+// 104 touches (qui serait pleine de trous, ces touches étant les seules jamais transmises, voir
+// le choix de scope pris avec l'utilisateur pour ne jamais exposer de texte tapé ailleurs).
+// Chaque entrée `{ l, u }` = une touche affichée (l = libellé, u = largeur en "unités" de
+// KEYS_UNIT_PX) ; une entrée sans `l` est un espaceur invisible de la même largeur.
+//
+// Groupé en blocs indépendamment masquables depuis l'éditeur de scène (item.showFunctionRow,
+// showDigitRow, showMovement, showModifiers — voir PROP_SPECS.keys dans sceneEditor.js) plutôt
+// qu'un plateau monolithique : les jeux n'utilisent presque jamais toutes ces touches à la fois,
+// et enlever des blocs est le principal levier de compacité (avec KEYS_UNIT_PX ci-dessous).
+//
+// Z/Q/A vs W/A/Q : sur un clavier AZERTY, la touche physiquement "avancer"/"gauche"/"lean gauche"
+// remonte le vkCode de Z/Q/A (jamais W/A/Q) une fois traduite par Windows selon le layout actif —
+// les DEUX touches "lean" (haut-gauche du diamant, à côté d'avancer) et "strafe" (bas-gauche)
+// utilisent en réalité les MÊMES deux vkCodes (A et Q) sur les deux dispositions, juste échangés :
+// QWERTY range "A" sur strafe et "Q" sur lean, AZERTY range "Q" sur strafe et "A" sur lean.
+// electron/inputCapture.js écoute donc TOUJOURS A/Q (+Z/W/E), et c'est uniquement l'affichage ici
+// qui choisit lequel dessiner à quelle position selon item.layout. S/D/E restent identiques sur
+// les deux dispositions (mêmes touches physiques).
+const KEYS_UNIT_PX = 26;
+
+function buildKeysBlocks(layout) {
+    const move = layout === 'qwerty'
+        ? { lean: 'Q', up: 'W', left: 'A' }
+        : { lean: 'A', up: 'Z', left: 'Q' };
+    return {
+        functionRow: [
+            [{ l: 'Échap', u: 1 }, { u: 0.5 },
+                { l: 'F1', u: 1 }, { l: 'F2', u: 1 }, { l: 'F3', u: 1 }, { l: 'F4', u: 1 }, { u: 0.5 },
+                { l: 'F5', u: 1 }, { l: 'F6', u: 1 }, { l: 'F7', u: 1 }, { l: 'F8', u: 1 }, { u: 0.5 },
+                { l: 'F9', u: 1 }, { l: 'F10', u: 1 }, { l: 'F11', u: 1 }, { l: 'F12', u: 1 }]
+        ],
+        digitRow: [
+            [{ l: '1', u: 1 }, { l: '2', u: 1 }, { l: '3', u: 1 }, { l: '4', u: 1 }, { l: '5', u: 1 },
+                { l: '6', u: 1 }, { l: '7', u: 1 }, { l: '8', u: 1 }, { l: '9', u: 1 }, { l: '0', u: 1 }]
+        ],
+        movement: [
+            [{ l: 'Tab', u: 1.5 }, { u: 0.5 }, { l: move.lean, u: 1 }, { l: move.up, u: 1 }, { l: 'E', u: 1 }],
+            [{ u: 2.25 }, { l: move.left, u: 1 }, { l: 'S', u: 1 }, { l: 'D', u: 1 }]
+        ],
+        modifiers: [
+            [{ l: 'Shift', u: 1.75 }, { l: 'Espace', u: 6 }, { l: 'Entrée', u: 1.5 }],
+            [{ l: 'Ctrl', u: 1.25 }, { l: 'Alt', u: 1.25 }]
+        ]
+    };
+}
+
+const KEYS_ARROWS_ROWS = [
+    [{ u: 1 }, { l: '↑', u: 1 }, { u: 1 }],
+    [{ l: '←', u: 1 }, { l: '↓', u: 1 }, { l: '→', u: 1 }]
+];
+
+// Doivent rester synchronisés à la main avec .keys-row/.keys-rows { gap } et .keys-box { height }
+// dans overlay-common.css — utilisés uniquement pour calculer une largeur/hauteur EXPLICITE ci-
+// dessous (voir buildKeysRows).
+const KEYS_ROW_GAP_PX = 3;
+const KEYS_BOX_HEIGHT_PX = 24;
+
+function rowWidthPx(row) {
+    return row.reduce((sum, k) => sum + k.u * KEYS_UNIT_PX, 0) + Math.max(0, row.length - 1) * KEYS_ROW_GAP_PX;
+}
+
+/** Construit un bloc de lignes de touches (plateau principal ou pavé flèches) à partir d'une
+ * disposition (blocs choisis de buildKeysBlocks(), ou KEYS_ARROWS_ROWS) — chaque touche porte
+ * data-key-label, utilisé par setKeyState() pour retrouver la bonne case à allumer/éteindre.
+ *
+ * Largeur/hauteur posées EXPLICITEMENT (pas laissées en "auto") : .keys-rows est un conteneur flex
+ * en colonne dont les enfants (.keys-row) sont eux-mêmes des conteneurs flex en ligne à largeur
+ * fixe — ce niveau d'imbrication flex-dans-flex est un cas connu où le calcul de taille "auto"
+ * (min-content) d'un flex-item diverge entre moteurs (constaté : correct sous Chromium/Electron,
+ * mais Firefox sous-évalue la largeur de ce bloc, faisant chevaucher les éléments suivants du flex
+ * parent, ex: le bloc souris qui se retrouve sur le clavier au lieu d'à côté). Une largeur/hauteur
+ * explicite lève toute ambiguïté, quel que soit le moteur. */
+function buildKeysRows(rows) {
+    const board = document.createElement('div');
+    board.className = 'keys-rows';
+    board.style.width = (rows.length ? Math.max(...rows.map(rowWidthPx)) : 0) + 'px';
+    board.style.height = (rows.length * KEYS_BOX_HEIGHT_PX + Math.max(0, rows.length - 1) * KEYS_ROW_GAP_PX) + 'px';
+    rows.forEach((row) => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'keys-row';
+        row.forEach((k) => {
+            const box = document.createElement('div');
+            box.style.flex = '0 0 ' + (k.u * KEYS_UNIT_PX) + 'px';
+            if (k.l) {
+                box.className = 'keys-box keys-key';
+                box.dataset.keyLabel = k.l;
+                box.textContent = k.l;
+            } else {
+                box.className = 'keys-box keys-spacer';
+            }
+            rowEl.appendChild(box);
+        });
+        board.appendChild(rowEl);
+    });
+    return board;
+}
+
+/** Bascule l'état visuel (allumé/éteint) de toutes les cases portant ce libellé, sur TOUS les
+ * widgets .keys-widget de la page (pas de singleton, voir store.js) — reçu via le message
+ * WebSocket 'input-key' (electron/main.js), state: 'down' ou 'up'. */
+function setKeyState(label, state) {
+    document.querySelectorAll('.keys-widget [data-key-label="' + label + '"]').forEach((box) => {
+        box.classList.toggle('active', state === 'down');
+    });
 }
 
 function applyBottomBarContentFromConfig() {
@@ -98,7 +1528,7 @@ function applyBottomBarContentFromConfig() {
     if (!content) return;
 
     const infoTexts = Array.isArray(content.infoTexts) ? content.infoTexts : null;
-    const scrollingText = (typeof content.scrollingText === 'string') ? content.scrollingText : null;
+    const scrollingText = (typeof content.scrollingText === 'string') ? tr(content.scrollingText) : null;
 
     document.querySelectorAll('.bottom-bar').forEach(bar => {
         // 1) Texte défilant (index.html)
@@ -115,7 +1545,7 @@ function applyBottomBarContentFromConfig() {
             if (infoItemTextEls && infoItemTextEls.length > 0) {
                 infoItemTextEls.forEach((el, idx) => {
                     if (typeof infoTexts[idx] === 'string') {
-                        el.textContent = infoTexts[idx];
+                        el.textContent = tr(infoTexts[idx]);
                     }
                 });
                 return;
@@ -126,7 +1556,7 @@ function applyBottomBarContentFromConfig() {
             if (directTextEls && directTextEls.length > 0) {
                 directTextEls.forEach((el, idx) => {
                     if (typeof infoTexts[idx] === 'string') {
-                        el.textContent = infoTexts[idx];
+                        el.textContent = tr(infoTexts[idx]);
                     }
                 });
             }
@@ -171,10 +1601,19 @@ function showAlert(type, username, message = '', amount = '') {
 
         const alertContainer = document.getElementById('alertContainer');
         const alertIcon = document.getElementById('alertIcon');
+        const alertMedia = document.getElementById('alertMedia');
         const alertTitle = document.getElementById('alertTitle');
         const alertUsername = document.getElementById('alertUsername');
         const alertMessage = document.getElementById('alertMessage');
         const alertAmount = document.getElementById('alertAmount');
+
+        // Pages sans conteneur d'alertes (scènes personnalisées /scene/<id>, pages starting/
+        // pause/ending) : les événements Twitch arrivent quand même par WebSocket — ignorer
+        // proprement plutôt que de planter sur alertIcon.innerHTML.
+        if (!alertContainer || !alertIcon) {
+            resolve();
+            return;
+        }
 
         // Utiliser la config pour les types d'alertes
         const typesCfg = (cfg.alerts && cfg.alerts.types) ? cfg.alerts.types : {};
@@ -185,33 +1624,73 @@ function showAlert(type, username, message = '', amount = '') {
         }
 
         // Configuration de l'alerte
-        alertIcon.innerHTML = config.icon;
-        alertTitle.textContent = config.title;
+        alertIcon.innerHTML = safeIconHtml(config.icon);
+        alertTitle.textContent = tr(config.title);
         alertUsername.textContent = username || 'Anonymous';
-        alertMessage.textContent = message || config.defaultMessage;
+        alertMessage.textContent = message || tr(config.defaultMessage);
 
-        alertContainer.style.background = config.gradient;
-        alertContainer.style.borderColor = config.border;
+        // Couleur d'accent par type (bordure, badge icône, titre, glow) — voir --alert-accent
+        // dans overlay-common.css. Le fond du cadre reprend en plus un léger dégradé
+        // gradientStart -> gradientEnd (repli sur border si absent des deux côtés).
+        alertContainer.style.setProperty('--alert-accent', config.border || 'var(--theme-primary, #a855f7)');
+        const gradientStartRgb = hexToRgbTriplet(config.gradientStart) || hexToRgbTriplet(config.border);
+        const gradientEndRgb = hexToRgbTriplet(config.gradientEnd) || hexToRgbTriplet(config.border);
+        if (gradientStartRgb) alertContainer.style.setProperty('--alert-gradient-start-rgb', gradientStartRgb);
+        if (gradientEndRgb) alertContainer.style.setProperty('--alert-gradient-end-rgb', gradientEndRgb);
+
+        // Média "hero" (image/GIF uploadé depuis /settings) : bascule la mise en page en grand
+        // format si présent, sinon on garde le style compact avec icône (voir .has-media dans
+        // overlay-common.css).
+        if (alertMedia) {
+            if (config.media) {
+                // Re-fit une fois le média chargé : sa hauteur naturelle change la taille de la
+                // boîte, donc l'échelle qui la fait tenir dans la zone.
+                alertMedia.onload = () => fitAlertBox();
+                alertMedia.src = config.media;
+                alertContainer.classList.add('has-media');
+            } else {
+                alertMedia.onload = null;
+                alertMedia.removeAttribute('src');
+                alertContainer.classList.remove('has-media');
+            }
+        }
+
+        // Animation d'entrée/sortie par type (fade/slide/zoom/bounce, voir .anim-* dans
+        // overlay-common.css) — une seule classe anim-* à la fois sur le conteneur.
+        alertContainer.classList.remove('anim-fade', 'anim-slide', 'anim-zoom', 'anim-bounce');
+        alertContainer.classList.add(`anim-${config.animationStyle || 'fade'}`);
 
         if (amount) {
             alertAmount.textContent = amount;
-            alertAmount.style.display = 'block';
+            alertAmount.style.display = 'inline-block';
         } else {
             alertAmount.style.display = 'none';
         }
 
-        // Afficher l'alerte
+        // Son personnalisé pour ce type d'alerte (uploadé depuis /settings), best-effort : ne
+        // doit jamais bloquer l'alerte visuelle si le fichier est absent ou si le navigateur
+        // refuse la lecture automatique.
+        if (config.sound) {
+            const audio = new Audio(config.sound);
+            audio.volume = Math.min(1, Math.max(0, cfg.alerts?.soundVolume ?? 0.8));
+            audio.play().catch(() => {});
+        }
+
+        // Afficher l'alerte — l'ajustement à la zone se mesure une fois .show posé (display:flex,
+        // sinon toutes les mesures valent 0).
         alertContainer.classList.remove('hide');
         alertContainer.classList.add('show');
         alertContainer.style.opacity = 1;
+        fitAlertBox();
 
-        // Ajouter l'effet de confettis avec la config
+        // Ajouter l'effet de confettis avec la config, assortis à la couleur de l'alerte
         if (typeof confetti !== 'undefined' && (!cfg.alerts || cfg.alerts.confettiEnabled !== false)) {
             confetti({
                 particleCount: cfg.alerts?.confettiParticles ?? 300,
                 startVelocity: cfg.alerts?.confettiVelocity ?? 50,
                 spread: cfg.alerts?.confettiSpread ?? 360,
                 ticks: cfg.alerts?.confettiTicks ?? 250,
+                colors: config.border ? [config.border, '#ffffff'] : undefined,
                 origin: { y: 0.5 }
             });
         }
@@ -223,6 +1702,27 @@ function showAlert(type, username, message = '', amount = '') {
             setTimeout(resolve, 600);
         }, cfg.alerts?.duration ?? 6000);
     });
+}
+
+/**
+ * Met la boîte d'alerte (#alertBox, composée à taille naturelle fixe en px — voir .alert-box
+ * dans overlay-common.css) à l'échelle du plus grand format qui tient dans sa zone
+ * (#alertContainer, le cadre positionné depuis l'éditeur de scène). Agrandit comme réduit :
+ * une grande zone donne une grande alerte. Rappelée au chargement du média (sa hauteur
+ * naturelle n'est connue qu'à ce moment-là — sans ça un GIF encore non chargé donnerait une
+ * boîte mesurée trop courte, donc une échelle trop grande).
+ */
+function fitAlertBox() {
+    const zone = document.getElementById('alertContainer');
+    const box = document.getElementById('alertBox');
+    if (!zone || !box) return;
+    box.style.zoom = '';
+    const zoneWidth = zone.clientWidth;
+    const zoneHeight = zone.clientHeight;
+    const boxWidth = box.offsetWidth;
+    const boxHeight = box.offsetHeight;
+    if (!zoneWidth || !zoneHeight || !boxWidth || !boxHeight) return;
+    box.style.zoom = String(Math.max(0.1, Math.min(zoneWidth / boxWidth, zoneHeight / boxHeight)));
 }
 
 function processAlertQueue() {
@@ -258,32 +1758,163 @@ function addAlertsToQueue(type, username, message = '', amount = '') {
 // ========== GESTION DU CHAT ==========
 
 function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    if (text === null || text === undefined) return '';
+    // Guillemets compris : le résultat est aussi inséré dans des attributs (alt, title...).
+    return String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function addChatMessage(username, message, color, badgeUrls) {
-    const cfg = getOverlayConfig();
-    const container = document.getElementById('chatContainer');
-    if (!container) return;
+/** Couleur CSS sûre (#rgb, #rrggbb, #rrggbbaa) pour un style écrit dans du HTML, sinon `fallback`. */
+function safeColor(value, fallback) {
+    return /^#[0-9a-f]{3,8}$/i.test(String(value || '')) ? value : fallback;
+}
 
-    const messageElement = document.createElement('div');
-    messageElement.className = 'chat-message';
-    messageElement.innerHTML = `
-        <div class="chat-username" style="color: ${color || cfg.chat?.defaultColor || '#3b82f6'};">
-            ${badgeUrls ? Object.entries(badgeUrls).map(([key, url]) => `<img src="${url}" alt="${key} badge" class="chat-badge">`).join('') : ''}
-            ${escapeHtml(username || 'Anonymous')}
-        </div>
-        <div class="chat-text">${escapeHtml(message || '')}</div>
-    `;
-    container.appendChild(messageElement);
-    if (cfg.chat?.scrollBehavior === 'smooth') {
-        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-    } else {
-        container.scrollTop = container.scrollHeight;
+/**
+ * Icône d'alerte : seulement une icône Font Awesome (`<i class="fas fa-heart"></i>`). Une valeur
+ * venue d'un profil partagé ne doit jamais pouvoir insérer du HTML arbitraire dans l'overlay.
+ */
+function safeIconHtml(icon) {
+    const match = /^\s*<i class="([a-z0-9 -]+)"\s*><\/i>\s*$/i.exec(String(icon || ''));
+    return match ? '<i class="' + match[1] + '"></i>' : '<i class="fas fa-bell"></i>';
+}
+
+/**
+ * Rend le texte d'un message en résolvant les fragments "emote" en images (CDN Twitch — inclut
+ * les emotes de chaîne/sub/globaux, y compris les emotes sub d'une autre chaîne que le chatter a
+ * le droit d'utiliser : Twitch les résout déjà côté serveur dans message.fragments). Retombe sur
+ * le texte brut échappé si fragments est absent/vide (ex: anciens messages, message de test sans
+ * fragments) — comportement identique à avant pour ce cas.
+ */
+function renderChatMessageHTML(message, fragments) {
+    if (!Array.isArray(fragments) || fragments.length === 0) {
+        return escapeHtml(message || '');
     }
+    return fragments.map((fragment) => {
+        if (fragment.type === 'emote' && fragment.emote?.id) {
+            const src = `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(fragment.emote.id)}/default/dark/1.0`;
+            return `<img src="${src}" alt="${escapeHtml(fragment.text || '')}" title="${escapeHtml(fragment.text || '')}" class="chat-emote">`;
+        }
+        return escapeHtml(fragment.text || '');
+    }).join('');
+}
+
+function addChatMessage(username, message, color, badgeUrls, fragments) {
+    const cfg = getOverlayConfig();
+    const nameColor = safeColor(color, safeColor(cfg.chat?.defaultColor, '#3b82f6'));
+    const badgesHTML = badgeUrls
+        ? Object.entries(badgeUrls)
+            .filter(([, url]) => /^https:\/\//.test(String(url)))
+            .map(([key, url]) => `<img src="${escapeHtml(url)}" alt="${escapeHtml(key)} badge" class="chat-badge">`).join('')
+        : '';
+    const textHTML = renderChatMessageHTML(message, fragments);
+
+    // Panneau vertical (id DOM unique) : peut être absent d'une scène qui n'a qu'un bandeau —
+    // ce n'est plus une raison de sortir, les bandeaux ci-dessous doivent être servis quand même.
+    const container = document.getElementById('chatContainer');
+    if (container) {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'chat-message';
+        messageElement.innerHTML = `
+            <div class="chat-username" style="color: ${nameColor};">
+                ${badgesHTML}
+                ${escapeHtml(username || 'Anonymous')}
+            </div>
+            <div class="chat-text">${textHTML}</div>
+        `;
+        container.appendChild(messageElement);
+        if (cfg.chat?.scrollBehavior === 'smooth') {
+            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        } else {
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+
+    // Bandeaux défilants (autant qu'on veut sur la page, cf. store.js) : même contenu, mais
+    // pseudo et message sur une seule ligne.
+    document.querySelectorAll('.chat-ticker').forEach((ticker) => {
+        const item = document.createElement('span');
+        item.className = 'ticker-item';
+        item.innerHTML = `<span class="ticker-user" style="color: ${nameColor};">${badgesHTML}${escapeHtml(username || 'Anonymous')}</span>`
+            + `<span class="ticker-text">${textHTML}</span>`;
+        appendTickerItem(ticker, item);
+    });
+}
+
+/**
+ * Ajoute un message à un bandeau en garantissant qu'il ENTRE PAR LE BORD DROIT : si le contenu
+ * déjà présent se termine avant ce bord (chat calme, piste presque vide), un espaceur comble la
+ * différence — sans lui, un message arrivant après un silence apparaîtrait brutalement au milieu
+ * du bandeau, là où s'était arrêté le précédent.
+ */
+function appendTickerItem(ticker, item) {
+    const track = ticker.querySelector('[data-ticker-track]');
+    if (!track) return;
+    // N'apparaît que s'il y a un message : voir la règle .chat-ticker:not(.has-messages) dans
+    // overlay-common.css, retirée symétriquement dans advanceTicker quand la piste se vide.
+    ticker.classList.add('has-messages');
+    const offset = parseFloat(track.dataset.offset || '0');
+    const contentRight = offset + track.scrollWidth;
+    const gap = ticker.clientWidth - contentRight;
+    if (gap > 0) {
+        const spacer = document.createElement('span');
+        spacer.className = 'ticker-spacer';
+        spacer.style.width = gap + 'px';
+        track.appendChild(spacer);
+    }
+    track.appendChild(item);
+}
+
+/**
+ * Boucle d'animation partagée par TOUS les bandeaux de la page (une seule rAF, pas une par
+ * widget). Le défilement est piloté en JS plutôt que par une animation CSS : le contenu est un
+ * flux vivant (messages ajoutés/retirés en permanence), alors qu'une keyframe CSS suppose une
+ * distance connue à l'avance et repartirait de zéro à chaque changement de contenu.
+ */
+let chatTickerRaf = null;
+
+function ensureChatTickerLoop() {
+    if (chatTickerRaf !== null) return;
+    let last = performance.now();
+    const step = (now) => {
+        // dt borné : quand l'onglet/la source OBS repasse au premier plan après une pause, `now`
+        // a fait un bond de plusieurs secondes — sans borne, tout le contenu défilerait d'un coup.
+        const dt = Math.min(100, now - last);
+        last = now;
+        document.querySelectorAll('.chat-ticker').forEach((ticker) => advanceTicker(ticker, dt));
+        chatTickerRaf = requestAnimationFrame(step);
+    };
+    chatTickerRaf = requestAnimationFrame(step);
+}
+
+function advanceTicker(ticker, dt) {
+    // Figé en mode édition (posé par scene-editor-bridge.js) : les messages d'exemple doivent
+    // rester à l'écran pour pouvoir positionner le bandeau.
+    if (ticker.dataset.tickerPaused) return;
+    const track = ticker.querySelector('[data-ticker-track]');
+    if (!track) return;
+    if (!track.firstElementChild) {
+        // Piste vide : on repart de zéro, sinon l'offset accumulé décalerait le prochain message.
+        track.dataset.offset = '0';
+        track.style.transform = '';
+        ticker.classList.remove('has-messages');
+        return;
+    }
+
+    const speed = parseFloat(ticker.dataset.tickerSpeed) || 60;
+    let offset = parseFloat(track.dataset.offset || '0') - (speed * dt) / 1000;
+
+    // Retire ce qui est entièrement sorti à gauche, en recréditant l'offset d'autant pour que le
+    // reste de la piste ne saute pas visuellement.
+    let first = track.firstElementChild;
+    while (first) {
+        const width = first.offsetWidth + parseFloat(getComputedStyle(first).marginRight || '0');
+        if (offset + width > 0) break;
+        offset += width;
+        first.remove();
+        first = track.firstElementChild;
+    }
+
+    track.dataset.offset = String(offset);
+    track.style.transform = 'translateX(' + offset + 'px)';
 }
 
 // ========== GESTION DES BADGES ==========
@@ -339,10 +1970,68 @@ function initWebSocket() {
     ws.onmessage = function (event) {
         const data = JSON.parse(event.data);
 
+        if (data.type === 'config-updated') {
+            // Réglages changés depuis /settings : réappliquer sans recharger la page.
+            // Les alertes lisent déjà getOverlayConfig() à chaque déclenchement, donc suivent
+            // automatiquement. Les compteurs/toggles d'animations, eux, ne sont posés qu'au
+            // chargement de la page et ne peuvent pas être réappliqués ici.
+            globalThis.OVERLAY_CONFIG = data.config;
+            applyThemeFromConfig();
+            applySceneSettingsFromConfig();
+            applyBottomBarContentFromConfig();
+            applyBottomBarVisibilityFromConfig();
+            applyChatVisibilityFromConfig();
+            applyLayoutFromConfig();
+            applyTextOverridesFromConfig();
+            applyTextStylesFromConfig();
+            renderCustomTextsFromConfig();
+            // Pour les scripts propres à une page (messages de pause…).
+            window.dispatchEvent(new CustomEvent('overlay-config-updated'));
+            return;
+        }
+
+        if (data.type === 'spotify-track-updated') {
+            applySpotifyTrack(data.track);
+            return;
+        }
+
+        if (data.type === 'language-changed') {
+            location.reload();
+            return;
+        }
+
+        if (data.type === 'interaction') {
+            setTwitchInteraction(data.kind, data.data, data.phase);
+            return;
+        }
+
+        if (data.type === 'input-key') {
+            setKeyState(data.label, data.state);
+            return;
+        }
+
+        if (data.type === 'show-panel') {
+            // Déclenchement direct (page /tests, plugin Stream Deck...) — pas de simulation de
+            // message de chat. showInfoPanel/showBottomBar sont définis dans index.js (index.html
+            // uniquement) ; sur les autres pages ces fonctions n'existent pas, on ne fait rien.
+            // force=true : un déclenchement manuel doit s'afficher même si le panneau est
+            // désactivé dans les réglages (seul le cycle automatique respecte ce réglage).
+            if (data.panel === 'left' && typeof showInfoPanel === 'function') showInfoPanel(true);
+            if (data.panel === 'bottom' && typeof showBottomBar === 'function') showBottomBar(true);
+            // Équivalents en widget de scène (posables sur n'importe quelle page, y compris les
+            // scènes personnalisées où showInfoPanel/showBottomBar n'existent pas) : même
+            // déclenchement manuel, même contournement du réglage "désactivé".
+            showSceneAutoWidget(data.panel === 'left' ? 'infoPanel' : 'bottomBar', true);
+            return;
+        }
+
         if (data.type === 'message') {
             if (data.message.startsWith('!')) {
-                if (data.message === '!info' && typeof showInfoPanel === 'function') {
-                    showInfoPanel();
+                if (data.message === '!info') {
+                    if (typeof showInfoPanel === 'function') showInfoPanel();
+                    // Équivalent en widget de scène (page convertie ou scène personnalisée) : la
+                    // commande doit continuer de marcher là où le panneau intégré n'existe plus.
+                    showSceneAutoWidget('infoPanel');
                 }
                 return;
             } else {
@@ -359,31 +2048,31 @@ function initWebSocket() {
                     }
                 }
 
-                addChatMessage(data.username, data.message, data.color, badgeUrls);
+                addChatMessage(data.username, data.message, data.color, badgeUrls, data.fragments);
             }
         }
         else if (data.type === 'channel.raid') {
-            const raidMessage = `Raid de ${data.data.from_broadcaster_user_name}`;
-            const raidAmount = data.data.viewers ? ` Bienvenue au ${data.data.viewers} viewers` : '';
+            const raidMessage = tr('Raid de {name}', { name: data.data.from_broadcaster_user_name });
+            const raidAmount = data.data.viewers ? ' ' + tr('Bienvenue aux {n} viewers', { n: data.data.viewers }) : '';
             addAlertsToQueue('raid', raidMessage, '', raidAmount);
         }
         else if (data.type === 'channel.subscribe' && !data.data.is_gift) {
             const message = data.data.message ? data.data.message.text || '' : '';
-            const subMessage = data.data.cumulative_months ? `Merci pour le resub ! ${data.data.cumulative_months} mois` : 'Merci pour le sub !';
+            const subMessage = data.data.cumulative_months ? tr('Merci pour le resub ! {n} mois', { n: data.data.cumulative_months }) : tr('Merci pour le sub !');
             addAlertsToQueue('sub', data.data.user_name, subMessage, message);
         }
         else if (data.type === 'channel.subscribe' && data.data.is_gift) {
-            addAlertsToQueue('sub', data.data.user_name, `Merci pour le sub gift !`, '');
+            addAlertsToQueue('sub', data.data.user_name, tr('Merci pour le sub gift !'), '');
         }
         else if (data.type === 'channel.subscription.gift') {
-            addAlertsToQueue('subs_gift', data.data.user_name, `Merci pour les ${data.data.total} sub gifts !`, '');
+            addAlertsToQueue('subs_gift', data.data.user_name, tr('Merci pour les {n} sub gifts !', { n: data.data.total }), '');
         }
         else if (data.type === 'channel.cheer') {
             var cheerUserName = data.data.is_anonymous ? 'Anonymous' : data.data.user_name;
-            addAlertsToQueue('bits', cheerUserName, `Merci pour les  ${data.data.bits} bits !`, data.data.message ? data.data.message : '');
+            addAlertsToQueue('bits', cheerUserName, tr('Merci pour les {n} bits !', { n: data.data.bits }), data.data.message ? data.data.message : '');
         }
         else if (data.type === 'channel.follow') {
-            addAlertsToQueue('follow', data.data.user_name, `Merci pour le follow !`);
+            addAlertsToQueue('follow', data.data.user_name, tr('Merci pour le follow !'));
         }
     };
 
@@ -480,12 +2169,26 @@ function createCircuitLines(horizontal = 10, vertical = 8, duration = 6) {
 
 function initDVDLogo() {
     const cfg = getOverlayConfig();
-    if (cfg.animations?.enabled === false || cfg.animations?.dvdLogo?.enabled === false) return;
-
     const logoContainer = document.getElementById('logoContainer');
     const dvdLogo = document.getElementById('dvdLogo');
 
     if (!logoContainer || !dvdLogo) return;
+
+    // Désactivé : masquer explicitement, sinon le logo reste visible (figé au coin
+    // haut-gauche, sa position CSS par défaut) faute de transform jamais appliqué.
+    // La bascule de la scène est prioritaire quand elle est renseignée (comme les autres effets —
+    // voir animEnabled() dans initCommonOverlay) ; sinon réglages globaux pour les pages
+    // intégrées, coupé pour une scène personnalisée.
+    const dvdPageKey = getThemeKeyFromLocation();
+    const dvdSceneFx = cfg.scenes?.[dvdPageKey]?.effects || {};
+    const dvdEnabled = (dvdSceneFx.dvdLogo !== undefined)
+        ? !!dvdSceneFx.dvdLogo
+        : (OVERLAY_BUILTIN_PAGES.includes(dvdPageKey) && cfg.animations?.enabled !== false && cfg.animations?.dvdLogo?.enabled !== false);
+    if (!dvdEnabled) {
+        logoContainer.style.display = 'none';
+        return;
+    }
+    logoContainer.style.display = '';
 
     const rectWidth = 1916;
     const rectHeight = 1075;
@@ -546,17 +2249,47 @@ function animateCounter(element, start, end, duration) {
 function initCommonOverlay() {
     const cfg = getOverlayConfig();
 
+    // Textes intégrés de la page dans la langue de l'interface (avant que les textes par défaut
+    // ne soient mémorisés par captureDefaultTexts).
+    translateStaticTexts(document.body);
+
     // Thème (couleurs) + variables CSS
     applyThemeFromConfig();
+
+    // Fond et halos d'ambiance des scènes personnalisées (no-op sur les pages intégrées)
+    applySceneSettingsFromConfig();
 
     // Contenu bottom bar (textes centralisés)
     applyBottomBarContentFromConfig();
 
     // Panneaux statiques (starting/ending) : possibilité de les masquer via config
-    if (cfg.panels?.bottom?.enabled === false) {
-        document.querySelectorAll('.bottom-bar, #bottomBar').forEach(el => {
-            el.style.display = 'none';
-        });
+    applyBottomBarVisibilityFromConfig();
+
+    // Boîte de chat (index.html) : possibilité de la masquer via config
+    applyChatVisibilityFromConfig();
+
+    // Positions/visibilité/textes custom posés depuis l'éditeur de scène (/scene-editor)
+    applyLayoutFromConfig();
+    captureDefaultTexts(); // avant le premier appel, sinon un texte déjà remplacé serait pris pour le défaut
+    applyTextOverridesFromConfig();
+    applyTextStylesFromConfig();
+    renderCustomTextsFromConfig();
+
+    // État initial d'un éventuel widget Spotify — avant le premier message WebSocket, sans quoi
+    // il resterait affiché "Rien en cours de lecture" jusqu'au prochain changement de morceau
+    // (potentiellement plusieurs minutes). N'appelle l'API que si la page en a réellement un.
+    if (document.querySelector('.spotify-widget')) {
+        fetchInitialSpotifyTrack();
+    }
+
+    // Un badge marqué data-scene-scale-text (horloge, indicateur de pause...) contient une icône
+    // FontAwesome chargée depuis un CDN externe : si applyLayoutFromConfig() tourne AVANT que cette
+    // police ne finisse de charger, sa mesure de largeur "naturelle" (utilisée pour calculer le
+    // facteur d'échelle du texte, voir plus haut) est capturée trop petite (icône en glyphe de
+    // repli), faussant durablement le ratio pour toute la session. On relance donc une passe une
+    // fois les polices confirmées chargées.
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => applyLayoutFromConfig());
     }
 
     // Charger les badges
@@ -567,24 +2300,32 @@ function initCommonOverlay() {
     // Initialiser WebSocket
     initWebSocket();
 
-    // Créer les animations de base
-    if (cfg.animations?.enabled !== false) {
-        if (cfg.animations?.particles?.enabled !== false) {
-            createParticles(cfg.animations?.particles?.count ?? 30, cfg.animations?.particles?.duration ?? [5, 8]);
-        }
-        if (cfg.animations?.stars?.enabled !== false) {
-            createStars(cfg.animations?.stars?.count ?? 80, cfg.animations?.stars?.duration ?? [1.5, 2.5]);
-        }
-        if (cfg.animations?.meteors?.enabled !== false) {
-            createMeteors(cfg.animations?.meteors?.count ?? 8, cfg.animations?.meteors?.duration ?? [2, 3]);
-        }
-        if (cfg.animations?.circuitLines?.enabled !== false) {
-            createCircuitLines(
-                cfg.animations?.circuitLines?.horizontal ?? 10,
-                cfg.animations?.circuitLines?.vertical ?? 8,
-                cfg.animations?.circuitLines?.duration ?? 6
-            );
-        }
+    // Créer les animations de base. Chaque scène (intégrée ou personnalisée) peut surcharger
+    // effet par effet via cfg.scenes[pageKey].effects ; un effet non renseigné retombe sur les
+    // réglages d'animations globaux pour les pages intégrées, et sur "coupé" pour une scène
+    // personnalisée (qui doit naître vierge). Les compteurs/durées restent ceux des réglages
+    // globaux : pas de raison de les dupliquer par scène.
+    const scenePageKey = getThemeKeyFromLocation();
+    const sceneFx = cfg.scenes?.[scenePageKey]?.effects || {};
+    const sceneIsBuiltin = OVERLAY_BUILTIN_PAGES.includes(scenePageKey);
+    const animEnabled = (name) => (sceneFx[name] !== undefined)
+        ? !!sceneFx[name]
+        : (sceneIsBuiltin && cfg.animations?.enabled !== false && cfg.animations?.[name]?.enabled !== false);
+    if (animEnabled('particles')) {
+        createParticles(cfg.animations?.particles?.count ?? 30, cfg.animations?.particles?.duration ?? [5, 8]);
+    }
+    if (animEnabled('stars')) {
+        createStars(cfg.animations?.stars?.count ?? 80, cfg.animations?.stars?.duration ?? [1.5, 2.5]);
+    }
+    if (animEnabled('meteors')) {
+        createMeteors(cfg.animations?.meteors?.count ?? 8, cfg.animations?.meteors?.duration ?? [2, 3]);
+    }
+    if (animEnabled('circuitLines')) {
+        createCircuitLines(
+            cfg.animations?.circuitLines?.horizontal ?? 10,
+            cfg.animations?.circuitLines?.vertical ?? 8,
+            cfg.animations?.circuitLines?.duration ?? 6
+        );
     }
 
     // Initialiser le logo DVD

@@ -10,10 +10,13 @@ let totalSteps = 0;
 
 // getOverlayConfig is defined globally in overlay-common.js and reused here.
 // Système de popup toutes les 5 minutes
-async function showInfoPanel() {
+async function showInfoPanel(force = false) {
     const cfg = getOverlayConfig();
     const panelCfg = cfg.panels?.left;
-    if (panelCfg?.enabled === false) return;
+    // `force` permet à un déclenchement manuel (page /tests, plugin Stream Deck — voir
+    // overlay-common.js) de passer outre le panneau désactivé dans les réglages ; le cycle
+    // automatique, lui, n'appelle jamais cette fonction avec force=true (voir plus bas).
+    if (!force && panelCfg?.enabled === false) return;
 
     if (timerInterval) {
         clearInterval(timerInterval);
@@ -36,11 +39,11 @@ async function showInfoPanel() {
     updateLeftPanel('leftPanelDestination', `${data.lastJob.source_city_name} → ${data.lastJob.destination_city_name}`);
     updateLeftPanel('leftPanelDistance', `${data.lastJob.planned_distance_km} km`);
     updateLeftPanel('leftPanelCargo', `${data.lastJob.cargo_name} ( ${data.lastJob.cargo_mass_t}t )`);
-    updateLeftPanel('leftPanelRank', `${data.userData.role.name || 'Inconnu'}`);
+    updateLeftPanel('leftPanelRank', `${data.userData.role.name || tr('Inconnu')}`);
     updateLeftPanel('leftPanelDistanceVTC', `${seperateThousands(data.companyStats.distance_driven_on_job_km)} km`);
     updateLeftPanel('leftPanelCompletedTrips', `${seperateThousands(data.companyStats.jobs_delivered)}`);
     updateLeftPanel('leftPanelDrivers', `${seperateThousands(data.companyDetails.members_count)}`);
-    updateLeftPanel('leftPanelRecruitments', `${data.companyDetails.recruitment === 'open' ? '🟢 Ouverts' : '🔴 Fermés'}`);
+    updateLeftPanel('leftPanelRecruitments', `${data.companyDetails.recruitment === 'open' ? tr('🟢 Ouverts') : tr('🔴 Fermés')}`);
 
     progress = 0;
     timer.style.background = `conic-gradient(#ef4444 0%, transparent 0%)`;
@@ -66,13 +69,21 @@ function updateTimer(timer) {
     }
 }
 
-function showBottomBar() {
+function showBottomBar(force = false) {
     const cfg = getOverlayConfig();
     const panelCfg = cfg.panels?.bottom;
-    if (panelCfg?.enabled === false) return;
+    if (!force && panelCfg?.enabled === false) return;
 
     const bottomBar = document.getElementById('bottomBar');
     if (!bottomBar) return;
+    // Masqué depuis l'éditeur de scène (œil des sources) : rien ne doit le faire réapparaître, pas
+    // même un événement Twitch. Sans ce garde-fou, le display posé ci-dessous écrasait le
+    // `display:none !important` de applyLayoutFromConfig() (un style inline sans priorité REMPLACE
+    // celui avec !important) — le bandeau ressortait au premier follow/sub et l'œil semblait
+    // n'avoir aucun effet.
+    // Même chose s'il a été supprimé de la scène (éditeur › Supprimer).
+    const layoutEntry = getOverlayConfig().layout?.[getThemeKeyFromLocation()]?.bottomBar;
+    if (layoutEntry?.hidden || layoutEntry?.removed) return;
     bottomBar.style.display = 'flex';
     bottomBar.style.animation = 'slide-in-up 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
 

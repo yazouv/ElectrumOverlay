@@ -21,9 +21,22 @@
     --theme-panel-border: var(--theme-secondary);
     --chat-default-color: #3b82f6;
     --chat-badge-size: 2vh;
+    --timer-color: #ef4444;
+    --timer-color-rgb: 239, 68, 68;
 }
 
 /* ========== STYLES DE BASE ========== */
+/* Le cadre capturé par OBS fait exactement la taille de la source navigateur (1920x1080) et ne doit
+ * jamais grandir : l'éditeur de scène autorise à faire dépasser un élément hors cadre par n'importe
+ * quel bord (positions négatives comprises, voir clampLayoutPercent dans overlay-common.js), et ce
+ * dépassement doit être ROGNÉ, pas révélé par un défilement. Les éléments concernés sont en
+ * position:fixed (donc déjà hors du flux de défilement du document), l'overflow:hidden ici couvre le
+ * reste — posé aussi sur html : quand html est en overflow:visible, c'est celui du body qui est
+ * propagé à la zone d'affichage, une règle html plus spécifique ailleurs suffirait à le réactiver. */
+html {
+    overflow: hidden;
+}
+
 body {
     margin: 0;
     font-family: 'Inter', Arial, sans-serif;
@@ -32,6 +45,12 @@ body {
     overflow: hidden;
     background: var(--theme-bg, var(--theme-accent, #1e293b));
     position: relative;
+    /* Fait du body un contexte d'empilement à part entière. Sans ça, body étant positionné, son
+       FOND est peint dans la couche des éléments positionnés, donc au-dessus de tout descendant à
+       z-index négatif : un élément envoyé en arrière-plan depuis l'éditeur (le dernier cran passe
+       sous 0) disparaissait purement et simplement derrière le fond de la page. Avec un contexte
+       d'empilement, les z négatifs se peignent au-dessus du fond du body et restent visibles. */
+    z-index: 0;
     color: var(--theme-text, #e2e8f0);
 }
 
@@ -43,82 +62,200 @@ body {
     font-style: normal;
 }
 
-/* ========== CONTENEUR D'ALERTES ========== */
+/* ========== ALERTES : ZONE + BOÎTE ==========
+ * .alert-container est la ZONE : un cadre invisible positionné/redimensionné depuis l'éditeur
+ * de scène (c'est lui qui porte data-scene-el). L'alerte elle-même est .alert-box, composée à
+ * taille "naturelle" fixe en px, puis mise à l'échelle par fitAlertBox() (overlay-common.js)
+ * au plus grand format qui tient dans la zone — média affiché en entier, jamais recadré.
+ * Une seule couleur d'accent par type d'alerte (--alert-accent, posée en JS depuis
+ * display.alerts.types.<type>.border) : bordure, badge icône, titre et glow la reprennent.
+ */
 .alert-container {
+    --alert-accent: var(--theme-primary, #a855f7);
+    /* Repris par transform ci-dessous et redéfinis par les variantes .anim-* — voir
+       showAlert() dans overlay-common.js pour la classe posée selon animationStyle. */
+    --alert-enter-transform: translateY(14px);
+    --alert-show-transform: translateY(0);
+    --alert-hide-transform: translateY(-10px);
+    --alert-transition: opacity 0.4s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
     position: fixed;
-    top: 20%;
+    top: 22%;
     left: 50%;
-    transform: translate(-50%, -50%) scale(0.8);
+    /* translate(-50%,-50%) est relatif à la taille ACTUELLE de la zone : un redimensionnement
+       (width/height posés par l'éditeur de scène) garde donc le centrage automatiquement, sans
+       calcul particulier à faire côté JS. La zone ne porte QUE ce centrage statique — les
+       transforms d'animation (var(--alert-*-transform), dont les scale() des styles zoom/
+       bounce) sont sur .alert-box : sinon le cadre lui-même rétrécissait avec l'animation de
+       sortie et restait figé à l'échelle réduite, et le drag de l'éditeur (qui ne compense que
+       la translation du transform, pas son échelle) décalait la zone en diagonale au clic. */
+    transform: translate(-50%, -50%);
     width: 40vw;
-    max-width: 600px;
-    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-    border-radius: 20px;
-    padding: 3vh 2vw;
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
-    border: 3px solid #475569;
-    text-align: center;
-    opacity: 0;
-    transition: opacity 0.6s ease, transform 0.6s ease;
-    z-index: 300;
+    height: 30vh;
     display: none;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: var(--alert-transition);
+    z-index: 300;
 }
 
 .alert-container.show {
-    display: block;
+    display: flex;
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
 }
 
 .alert-container.hide {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.8);
 }
 
+/* La boîte d'alerte, à taille naturelle FIXE en px (600 de large) : flex:none pour que la zone
+ * flex ne la compresse jamais — sa taille mesurée doit rester la taille naturelle, c'est la
+ * base du calcul d'échelle de fitAlertBox(). Tailles internes en px (pas en vh/vw) pour que la
+ * composition ne dépende pas du viewport : seule l'échelle finale s'en charge. */
+.alert-box {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    width: 600px;
+    background:
+        linear-gradient(135deg, rgba(var(--alert-gradient-start-rgb, 15, 23, 42), 0.35) 0%, rgba(var(--alert-gradient-end-rgb, 15, 23, 42), 0.55) 100%),
+        rgba(var(--theme-panel-bg-rgb, 15, 23, 42), 0.85);
+    backdrop-filter: blur(16px);
+    border-radius: 16px;
+    overflow: hidden;
+    padding: 24px 28px;
+    border: 1.5px solid var(--alert-accent);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 60px -22px var(--alert-accent);
+    text-align: left;
+    /* L'animation d'entrée/sortie (fade/slide/zoom/bounce) joue ici, pas sur la zone — les
+       variables sont définies par les classes .anim-* posées sur .alert-container (showAlert)
+       et héritées. Se combine sans conflit avec le zoom d'ajustement posé par fitAlertBox(). */
+    transform: var(--alert-enter-transform);
+    transition: var(--alert-transition);
+}
+
+.alert-container.show .alert-box {
+    transform: var(--alert-show-transform);
+}
+
+.alert-container.hide .alert-box {
+    transform: var(--alert-hide-transform);
+}
+
+/* ===== Styles d'animation d'entrée/sortie, un par type d'alerte (animationStyle) ===== */
+.alert-container.anim-fade {
+    --alert-enter-transform: translateY(14px);
+    --alert-show-transform: translateY(0);
+    --alert-hide-transform: translateY(-10px);
+    --alert-transition: opacity 0.4s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.alert-container.anim-slide {
+    --alert-enter-transform: translateX(70px);
+    --alert-show-transform: translateX(0);
+    --alert-hide-transform: translateX(-70px);
+    --alert-transition: opacity 0.35s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.alert-container.anim-zoom {
+    --alert-enter-transform: scale(0.6);
+    --alert-show-transform: scale(1);
+    --alert-hide-transform: scale(0.85);
+    --alert-transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.alert-container.anim-bounce {
+    --alert-enter-transform: scale(0.3);
+    --alert-show-transform: scale(1);
+    --alert-hide-transform: scale(0.6);
+    --alert-transition: opacity 0.3s ease, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ===== Média "hero" (image/GIF personnalisé) — remplace l'icône par un visuel en bannière ===== */
+.alert-media {
+    display: none;
+}
+
+.alert-container.has-media .alert-box {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 0 0 18px;
+    width: 480px;
+}
+
+/* Le média garde SES proportions et s'affiche en ENTIER (height:auto, pas de recadrage) :
+   c'est la mise à l'échelle globale de la boîte (fitAlertBox, overlay-common.js) qui le fait
+   tenir dans la zone d'alerte. */
+.alert-container.has-media .alert-media {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.alert-container.has-media .alert-icon {
+    display: none;
+}
+
+.alert-container.has-media .alert-body {
+    padding: 16px 20px 0;
+    text-align: center;
+}
+
+.alert-container.has-media .alert-username {
+    white-space: normal;
+}
+
+/* Tailles internes en px (plus de vh) : la boîte est composée à taille naturelle fixe puis mise
+   à l'échelle d'un bloc — sa composition ne doit pas dépendre du viewport. */
 .alert-icon {
-    font-size: 5vh;
-    margin-bottom: 2vh;
-    color: var(--theme-primary, #a855f7);
-    animation: bounce 0.5s infinite alternate;
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--alert-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #0b0d12;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+}
+
+.alert-body {
+    min-width: 0;
 }
 
 .alert-title {
-    color: var(--theme-primary, #a855f7);
-    font-size: 2.5vh;
-    font-weight: 800;
-    margin-bottom: 1vh;
+    font-family: 'Baron Neue Black', 'Inter', sans-serif;
+    color: var(--alert-accent);
+    font-size: 21px;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    margin-bottom: 4px;
 }
 
 .alert-username {
-    color: #f1f5f9;
-    font-size: 3vh;
-    font-weight: 700;
-    margin-bottom: 1vh;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    font-family: 'Baron Neue Black', 'Inter', sans-serif;
+    color: var(--theme-text, #f8fafc);
+    font-size: 30px;
+    line-height: 1.15;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .alert-message {
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 1.6vh;
+    color: var(--theme-muted-text, #94a3b8);
+    font-size: 16px;
     font-weight: 500;
 }
 
 .alert-amount {
-    color: #fbbf24;
-    font-size: 2.2vh;
-    font-weight: 800;
-    margin: 1vh 0;
-}
-
-/* ========== ANIMATIONS COMMUNES ========== */
-@keyframes bounce {
-    0% {
-        transform: translateY(0);
-    }
-    100% {
-        transform: translateY(-10px);
-    }
+    display: inline-block;
+    margin-top: 6px;
+    color: var(--alert-accent);
+    font-family: 'Baron Neue Black', 'Inter', sans-serif;
+    font-size: 21px;
 }
 
 @keyframes pulse {
@@ -283,24 +420,41 @@ body {
     }
 }
 
-/* ========== PANNEAU DE CHAT ========== */
+/* ========== PANNEAU DE CHAT ==========
+ * --widget-font / --widget-text-scale : posées en JS par applyWidgetTextStyle()
+ * (overlay-common.js) depuis les propriétés "Police" et "Taille du texte (%)" du widget. La
+ * police est déclarée ici pour être héritée par l'en-tête, les pseudos et les messages ; les
+ * tailles restent définies rangée par rangée (calc), ce qui conserve leurs proportions. */
 .chat-panel {
+    font-family: var(--widget-font, inherit);
+    display: flex;
+    flex-direction: column;
     position: absolute;
     top: 25vh;
     right: 2vw;
     width: 15vw;
     height: 40vh;
-    background: linear-gradient(135deg, rgba(var(--theme-panel-bg-rgb, 15, 23, 42), 0) 0%, rgba(var(--theme-panel-bg-rgb, 15, 23, 42), 0.92) 100%);
+    /* --chat-bg-opacity : opacité du fond, posée en JS depuis la propriété "Opacité du fond (%)"
+       de l'éditeur de scène — sur le panneau INTÉGRÉ via applyLayoutFromConfig() et sur le
+       panneau custom via renderCustomTextsFromConfig() (même classe, donc même règle).
+       Fond UNI et non plus dégradé (135°, de transparent à 0.92) : le dégradé laissait le coin
+       haut-gauche totalement transparent quelle que soit la valeur réglée, donc un panneau à
+       100 % n'était jamais opaque et le réglage semblait sans effet dans le haut du panneau. */
+    background: rgba(var(--theme-panel-bg-rgb, 15, 23, 42), var(--chat-bg-opacity, 0.92));
     border-radius: 15px;
     padding: 2vh 1.5vw;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    /* L'ombre portée suit l'opacité du fond (min() : jamais plus marquée qu'à l'origine) — sinon,
+       fond rendu transparent, elle laisserait une tache sombre flottante. Sur les pages
+       Démarrage/Fin, .neon-border écrase de toute façon cette ombre par son halo décoratif. */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, min(0.3, var(--chat-bg-opacity, 0.92)));
     border: 2px solid var(--theme-panel-border, var(--theme-secondary, #8b45f6));
     z-index: 100;
 }
 
 .chat-header {
+    flex-shrink: 0;
     color: var(--theme-primary, #a855f7);
-    font-size: 1.4vh;
+    font-size: calc(1.4vh * var(--widget-text-scale, 1));
     font-weight: 700;
     margin-bottom: 1.5vh;
     text-transform: uppercase;
@@ -313,7 +467,13 @@ body {
 }
 
 .chat-container {
-    height: 30vh;
+    /* flex:1 (plutôt qu'une hauteur fixe en vh) : la zone de messages occupe tout l'espace
+       restant dans .chat-panel, donc grossit/rétrécit avec lui — sans ça, agrandir le panneau
+       depuis l'éditeur de scène ne changeait que son cadre, jamais la place réellement
+       disponible pour les messages. min-height:0 est nécessaire pour qu'un enfant flex avec
+       overflow puisse réellement se contraindre à cette hauteur au lieu de déborder. */
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--theme-secondary, #8b45f6) transparent;
@@ -349,17 +509,312 @@ body {
     vertical-align: middle;
 }
 
+.chat-emote {
+    height: 2.4vh;
+    vertical-align: middle;
+    margin: 0 1px;
+}
+
 .chat-username {
     color: var(--chat-default-color, #a855f7);
     font-weight: 600;
-    font-size: 1.2vh;
+    font-size: calc(1.2vh * var(--widget-text-scale, 1));
     margin-bottom: 0.3vh;
 }
 
 .chat-text {
-    color: #e2e8f0;
-    font-size: 1.1vh;
+    color: var(--theme-text, #e2e8f0);
+    font-size: calc(1.1vh * var(--widget-text-scale, 1));
     line-height: 1.3;
+}
+
+/* ========== BANDEAU DE CHAT DÉFILANT (élément de scène "chatTicker") ==========
+ * Même flux que le panneau vertical, sur une seule ligne qui défile (voir advanceTicker dans
+ * overlay-common.js, qui translate .chat-ticker-track). overflow:hidden fait le masquage aux deux
+ * bords ; la piste est en largeur de contenu (max-content) pour que les messages s'alignent en
+ * ligne sans jamais passer à la ligne suivante. Hauteur laissée au contenu : le bandeau reste
+ * fin, c'est tout son intérêt face au panneau vertical. */
+.chat-ticker {
+    font-family: var(--widget-font, inherit);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: 0.8vh 0;
+    background: rgba(var(--theme-panel-bg-rgb, 15, 23, 42), var(--ticker-bg-opacity, 0.6));
+    border-top: 2px solid var(--theme-panel-border, var(--theme-secondary, #8b45f6));
+    border-bottom: 2px solid var(--theme-panel-border, var(--theme-secondary, #8b45f6));
+}
+
+/* Invisible tant qu'aucun message n'est passé dedans (classe posée/retirée par
+ * appendTickerItem/advanceTicker dans overlay-common.js) : sans ça, le fond et les bordures du
+ * bandeau restent affichés en permanence même chat calme, ce qui n'est pas souhaité pour cet
+ * élément (contrairement au panneau vertical, pensé pour rester visible en continu).
+ * visibility (pas display) : la boîte garde ses dimensions, donc clientWidth/scrollWidth restent
+ * mesurables — appendTickerItem s'en sert pour faire entrer le premier message par le bord droit. */
+.chat-ticker:not(.has-messages) {
+    visibility: hidden;
+}
+
+/* Gabarit invisible (largeur nulle) qui impose au bandeau la hauteur qu'il aurait avec des
+ * messages : sans lui, un bandeau vide — chat calme, ou messages tous sortis par la gauche —
+ * s'aplatit à la hauteur de ses seules marges, puis "saute" à sa taille réelle à l'arrivée du
+ * message suivant. Dans OBS, ce serait un cadre qui change de taille tout seul en direct.
+ * max() car la hauteur d'un message est dictée soit par ses badges (--chat-badge-size, qui ne
+ * suit pas la taille du texte), soit par le texte lui-même quand il est agrandi. */
+.chat-ticker::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 0;
+    height: max(var(--chat-badge-size, 2vh), calc(1.4vh * var(--widget-text-scale, 1) * 1.2));
+}
+
+.chat-ticker-track {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    /* Prévient le moteur que seul le transform change : évite un repaint complet du bandeau à
+       chaque frame (la boucle tourne en continu, contrairement aux autres animations d'overlay). */
+    will-change: transform;
+}
+
+.ticker-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5vw;
+    /* La marge fait l'écart entre messages ET entre dans le calcul de retrait d'advanceTicker
+       (offsetWidth + marginRight) — un `gap` sur la piste, lui, n'est pas mesurable ainsi. */
+    margin-right: 2vw;
+    white-space: nowrap;
+}
+
+.ticker-spacer {
+    display: inline-block;
+    flex: 0 0 auto;
+}
+
+.ticker-user {
+    font-weight: 700;
+    font-size: calc(1.4vh * var(--widget-text-scale, 1));
+}
+
+.ticker-user::after {
+    content: ' :';
+}
+
+.ticker-text {
+    color: var(--theme-text, #e2e8f0);
+    font-size: calc(1.3vh * var(--widget-text-scale, 1));
+}
+
+/* ========== WIDGET SPOTIFY (élément de scène "spotify", overlay-common.js) ==========
+ * --spotify-accent est posée en JS (item.color, voir renderCustomTextsFromConfig) — reprise pour
+ * la bordure et le titre, le fond reste une surface neutre (même logique que --alert-accent pour
+ * les alertes). Tailles en px (pas vh/vw) : pensé pour être mis à l'échelle d'un bloc via l'échelle
+ * (%) commune aux widgets custom, pas pour dépendre du viewport comme les pages intégrées. */
+.spotify-widget {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    /* --spotify-bg-opacity : posée en JS depuis "Opacité du fond (%)" (éditeur de scène), même
+       mécanisme que --chat-bg-opacity / --keys-bg-opacity (le flou, lui, est coupé à 0 par
+       applyPanelBgOpacity : aucune couleur ne le porte, il resterait un voile visible). */
+    background: rgba(var(--theme-panel-bg-rgb, 15, 23, 42), var(--spotify-bg-opacity, 0.85));
+    backdrop-filter: blur(16px);
+    border: 1.5px solid var(--spotify-accent, #1db954);
+    border-radius: 12px;
+    padding: 12px 16px;
+    /* Ombre indexée sur l'opacité du fond, même raison que .chat-panel. */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, min(0.35, var(--spotify-bg-opacity, 0.85)));
+}
+
+/* Rien en cours de lecture : le widget disparaît (posé par applySpotifyTrackTo). Par classe et
+ * non en style inline, pour ne pas écraser le `display:none !important` de l'œil "masquer" de
+ * l'éditeur de scène. En mode édition, le CSS injecté par scene-editor-bridge.js repasse par-dessus
+ * (display:flex !important) pour garder le widget positionnable même à l'arrêt. */
+.spotify-widget.spotify-idle {
+    display: none;
+}
+
+.spotify-art {
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    display: none;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.spotify-info {
+    min-width: 0;
+}
+
+/* --widget-text-scale / --widget-font : posées en JS par applyWidgetTextStyle()
+ * (overlay-common.js) depuis les propriétés "Taille du texte (%)" et "Police" du widget. Le
+ * multiplicateur préserve le rapport titre/artiste ; les valeurs de repli reproduisent le style
+ * d'origine (aucun réglage = rendu inchangé). */
+.spotify-title {
+    font-family: var(--widget-font, 'Baron Neue Black', 'Inter', sans-serif);
+    color: var(--spotify-accent, #1db954);
+    font-size: calc(16px * var(--widget-text-scale, 1));
+    line-height: 1.2;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.spotify-artist {
+    font-family: var(--widget-font, 'Inter', sans-serif);
+    color: var(--theme-text, #e2e8f0);
+    font-size: calc(13px * var(--widget-text-scale, 1));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ========== PLATEAU TOUCHES/SOURIS (élément de scène "keys", façon NohBoard) ==========
+ * overlay-common.js (KEYS_BOARD_ROWS/buildKeysRows) / electron/inputCapture.js. Contrairement au
+ * widget Spotify, ce plateau est un HUD PERMANENT : toutes les touches suivies sont dessinées en
+ * continu (état "relâché" par défaut), et setKeyState() ne fait que basculer .active quand la
+ * touche est réellement maintenue — jamais de disparition/réapparition d'éléments. */
+/* inline-flex (pas flex) : c'est un élément position:fixed SANS largeur explicite (contrairement
+ * à .spotify-widget/.chat-panel, qui posent toujours un width par défaut) — la taille "auto" d'un
+ * conteneur flex position:fixed/absolute est une zone du spec où les moteurs Chromium ne sont
+ * historiquement pas tous d'accord (shrink-to-fit vs pleine largeur du viewport), ce qui a produit
+ * un rendu correct dans l'éditeur (Chromium récent d'Electron) mais la souris qui finissait
+ * superposée au clavier dans OBS (CEF embarqué, souvent une version bien plus ancienne).
+ * inline-flex retombe sur un dimensionnement shrink-to-fit non ambigu dans les deux cas. */
+.keys-widget {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+/* flex-shrink: 0 sur les 3 blocs (clavier, flèches, souris) : leur taille est fixe par nature
+ * (px × zoom). Sans ça, la moindre contrainte de largeur sur .keys-widget les comprimerait au
+ * lieu de simplement déborder — les rangées internes (flex: 0 0) ne se compriment pas, elles,
+ * donc le bloc réduit se faisait recouvrir par le suivant (souris par-dessus le clavier). */
+.keys-main,
+.keys-arrows,
+.keys-mouse {
+    flex-shrink: 0;
+}
+
+.keys-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.keys-row {
+    display: flex;
+    gap: 3px;
+}
+
+/* Base commune touche/espaceur : même empreinte (l'espaceur garde l'alignement des rangées sans
+ * rien afficher) — --keys-accent posée en JS (item.color) sur .keys-widget, héritée ici. Hauteur
+ * légèrement sous KEYS_UNIT_PX (26px, overlay-common.js) : garde des touches carrées malgré le
+ * gap, pour un plateau compact façon NohBoard plutôt que le "clavier pleine taille" de la v1. */
+.keys-box {
+    height: 24px;
+    box-sizing: border-box;
+    border-radius: 5px;
+}
+
+.keys-key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.75);
+    /* --keys-bg-opacity posée en JS (item.bgOpacity, voir renderCustomTextsFromConfig) — l'état
+     * .active (touche enfoncée) reste un aplat plein de la couleur d'accent, non affecté : c'est
+     * la lisibilité de l'état "relâché" que ce réglage ajuste, pas le retour visuel d'appui. */
+    background: rgba(0, 0, 0, var(--keys-bg-opacity, 0.35));
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    transition: background 0.08s ease, color 0.08s ease, border-color 0.08s ease, transform 0.08s ease;
+}
+
+.keys-key.active {
+    color: #0b0d12;
+    background: var(--keys-accent, #f59e0b);
+    border-color: var(--keys-accent, #f59e0b);
+    transform: scale(0.94);
+}
+
+.keys-spacer {
+    background: transparent;
+    border: none;
+}
+
+/* position:relative (pas de overflow) : ancre les boutons de pouce (position:absolute) sur le
+ * bord gauche de .mouse-body sans les rogner — contrairement à .mouse-body lui-même, qui a besoin
+ * de son overflow:hidden pour que les coins des zones clic/molette restent coupés par son propre
+ * border-radius. */
+.keys-mouse {
+    position: relative;
+    display: flex;
+}
+
+.mouse-body {
+    position: relative;
+    display: flex;
+    width: 48px;
+    height: 72px;
+    overflow: hidden;
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    border-radius: 24px 24px 15px 15px;
+    background: rgba(0, 0, 0, var(--keys-bg-opacity, 0.35));
+}
+
+/* Boutons de pouce (Précédent/Suivant) intégrés au corps de la souris : légèrement en saillie sur
+ * le bord gauche (left négatif) plutôt qu'un bloc séparé à côté. Avant en haut, arrière en bas. */
+.mouse-thumb-btn {
+    position: absolute;
+    left: -4px;
+    width: 9px;
+    height: 13px;
+    box-sizing: border-box;
+    border-radius: 3px 0 0 3px;
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    background: rgba(0, 0, 0, var(--keys-bg-opacity, 0.35));
+    transition: background 0.08s ease;
+}
+
+.mouse-thumb-top { top: 20px; }
+.mouse-thumb-bottom { top: 37px; }
+
+.mouse-btn {
+    flex: 1;
+    height: 36px;
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+    transition: background 0.08s ease;
+}
+
+.mouse-btn:last-child {
+    border-right: none;
+}
+
+.mouse-wheel {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 16px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.25);
+    transition: background 0.08s ease;
+}
+
+.mouse-btn.active,
+.mouse-wheel.active,
+.mouse-thumb-btn.active {
+    background: var(--keys-accent, #f59e0b);
 }
 
 /* ========== BARRE DU BAS ========== */
@@ -369,8 +824,8 @@ body {
     right: 0;
     bottom: 20px;
     height: 70px;
-    background: rgba(30, 41, 59, 0.7);
-    border: 3px solid #475569;
+    background: rgba(var(--theme-panel-bg-rgb, 30, 41, 59), 0.7);
+    border: 3px solid var(--theme-panel-border, #475569);
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -391,7 +846,7 @@ body {
 }
 
 .info-text {
-    color: #e2e8f0;
+    color: var(--theme-text, #e2e8f0);
     font-size: 1.2em;
 }
 
@@ -546,4 +1001,174 @@ p {
     font-size: 1.5em;
     margin-bottom: 1em;
     animation: fadeInUp 1s ease-out 0.5s both;
+}
+
+/* ========== WIDGETS DE SCÈNE GÉNÉRIQUES ==========
+ * Équivalents libres des blocs jusque-là figés dans le HTML des 4 pages intégrées (badge de
+ * donnée live, badge icône+libellé, messages rotatifs, panneau d'infos, bandeau bas), rendus par
+ * renderCustomTextsFromConfig() dans overlay-common.js. Tout est dimensionné en `em` : la seule
+ * propriété "Taille (vh)" du panneau de propriétés pose une font-size, et le widget entier
+ * (marges, icône, bordure, arrondi) suit — pas besoin d'un zoom qui flouterait le texte.
+ * --widget-accent (couleur choisie) et --widget-bg-opacity (opacité du fond) sont posées en JS. */
+
+/* Masqué par le cycle d'apparition (ou faute de données) : par CLASSE et jamais en style inline,
+ * pour ne pas écraser le display:none !important de l'œil "masquer" de l'éditeur (même raison que
+ * .spotify-idle). En mode édition, scene-editor-bridge.js force l'affichage. */
+.scene-auto-hidden {
+    display: none;
+}
+
+.stat-badge,
+.scene-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--widget-font, 'Baron Neue Black', 'Inter', sans-serif);
+    gap: 0.5em;
+    padding: 0.45em 0.9em;
+    border-radius: 0.55em;
+    background: rgba(var(--theme-panel-bg-rgb, 15, 23, 42), var(--widget-bg-opacity, 0.85));
+    border: 0.08em solid var(--theme-panel-border, var(--theme-secondary, #8b45f6));
+    color: var(--theme-text, #e2e8f0);
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    box-shadow: 0 0.2em 0.8em rgba(0, 0, 0, min(0.35, var(--widget-bg-opacity, 0.85)));
+}
+
+.stat-badge i,
+.scene-badge i,
+.stat-badge .stat-value {
+    color: var(--widget-accent, var(--theme-primary, #a855f7));
+}
+
+/* Pulsation optionnelle (case "Pulsation") : reproduit l'effet des indicateurs PAUSE / EN ATTENTE
+ * des pages intégrées. transform:scale et non width/height, pour ne rien reflower. */
+.scene-badge.scene-badge-pulse {
+    animation: sceneBadgePulse 2s ease-in-out infinite;
+}
+
+@keyframes sceneBadgePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Messages rotatifs : le texte est remplacé en JS entre deux transitions d'opacité — la durée
+ * ici doit rester alignée sur le délai de fondu de rotateSceneTexts() (overlay-common.js). */
+.rotating-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--widget-font, 'Baron Neue Black', 'Inter', sans-serif);
+    text-align: center;
+    line-height: 1.35;
+    transition: opacity 0.4s ease;
+}
+
+.rotating-text.rotating-fade {
+    opacity: 0;
+}
+
+/* Panneau d'infos (équivalent de .left-panel) : sections titre + lignes libellé/valeur, alimenté
+ * par /api/info-panel (Trucky). Colonne à largeur libre : c'est le redimensionnement de l'élément
+ * dans l'éditeur qui fixe sa largeur, le contenu s'y adapte. */
+.info-panel-widget {
+    display: flex;
+    flex-direction: column;
+    font-family: var(--widget-font, 'Inter', sans-serif);
+    gap: 1em;
+    padding: 1em 1.2em;
+    border-radius: 0.8em;
+    background: rgba(var(--theme-panel-bg-rgb, 15, 23, 42), var(--widget-bg-opacity, 0.9));
+    border: 0.1em solid var(--theme-panel-border, var(--theme-secondary, #8b45f6));
+    color: var(--theme-text, #e2e8f0);
+    box-shadow: 0 0.3em 1em rgba(0, 0, 0, min(0.35, var(--widget-bg-opacity, 0.9)));
+    overflow: hidden;
+}
+
+.ipw-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    color: var(--widget-accent, var(--theme-primary, #a855f7));
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 0.12em solid var(--theme-panel-border, var(--theme-secondary, #8b45f6));
+    padding-bottom: 0.35em;
+    margin-bottom: 0.5em;
+}
+
+.ipw-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1em;
+    padding: 0.15em 0;
+}
+
+.ipw-label {
+    opacity: 0.75;
+}
+
+.ipw-value {
+    font-weight: 700;
+    text-align: right;
+}
+
+/* Bandeau bas (équivalent de .bottom-bar) : items icône + texte, plus un texte défilant optionnel.
+ * Largeur par défaut posée en JS (60vw) mais librement redimensionnable dans l'éditeur. */
+.bottom-bar-widget {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--widget-font, 'Inter', sans-serif);
+    gap: 1.5em;
+    padding: 0.6em 1.2em;
+    border-radius: 0.8em;
+    background: rgba(var(--theme-panel-bg-rgb, 15, 23, 42), var(--widget-bg-opacity, 0.9));
+    border: 0.1em solid var(--theme-panel-border, var(--theme-secondary, #8b45f6));
+    color: var(--theme-text, #e2e8f0);
+    box-shadow: 0 0.3em 1em rgba(0, 0, 0, min(0.35, var(--widget-bg-opacity, 0.9)));
+    overflow: hidden;
+}
+
+.bbw-items {
+    display: flex;
+    align-items: center;
+    gap: 1.6em;
+    flex-shrink: 0;
+}
+
+.bbw-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    white-space: nowrap;
+}
+
+.bbw-item i {
+    color: var(--widget-accent, var(--theme-primary, #a855f7));
+}
+
+/* Texte défilant du bandeau : simple animation CSS (contrairement à .chat-ticker, dont la piste
+ * est translatée en JS parce que son contenu s'allonge à chaque message reçu — ici le texte est
+ * fixe, aucune raison de payer une boucle requestAnimationFrame). overflow:hidden fait le masquage
+ * aux deux extrémités. */
+.bbw-scroll {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.bbw-scroll-track {
+    display: inline-block;
+    white-space: nowrap;
+    will-change: transform;
+    animation: bbwScroll 18s linear infinite;
+}
+
+@keyframes bbwScroll {
+    from { transform: translateX(100%); }
+    to { transform: translateX(-100%); }
 }

@@ -1,0 +1,297 @@
+{
+    "server": {
+        "PORT": 8080,
+        "WS_PORT": 8081,
+        "HOST": "localhost"
+    },
+    "twitch": {
+        "CLIENT_ID": "",
+        "CLIENT_SECRET": "",
+        "BROADCASTER_ID": "",
+        "BROADCASTER_LOGIN": "",
+        "USER_ACCESS_TOKEN": "",
+        "WEBHOOK_URL": "",
+        "WEBHOOK_SECRET": "",
+        "REDIRECT_URI": "http://localhost:8080/auth-callback",
+        "SCOPES": [
+            "user:read:chat",
+            "user:bot",
+            "channel:bot",
+            "channel:read:subscriptions",
+            "moderator:read:followers",
+            "chat:read",
+            "chat:edit",
+            "user:write:chat"
+        ]
+    },
+    "trucky": {
+        "enable": false,
+        "USER_ID": ""
+    },
+    "inputDisplay": {
+        "enabled": false
+    },
+    "commands": [],
+    "spotify": {
+        "CLIENT_ID": "",
+        "CLIENT_SECRET": "",
+        "REDIRECT_URI": "http://127.0.0.1:8080/api/spotify/callback",
+        "ACCESS_TOKEN": "",
+        "REFRESH_TOKEN": "",
+        "EXPIRES_AT": 0,
+        "SCOPES": ["user-read-currently-playing", "user-read-playback-state"]
+    },
+    "ngrok": {
+        "ENABLED": true,
+        "AUTHTOKEN": ""
+    },
+    "features": {
+        "AUTO_SUBSCRIBE_EVENTS": true,
+        "CLEANUP_ON_EXIT": true,
+        "HEARTBEAT_INTERVAL": 30000,
+        "MAX_RETRIES": 3
+    },
+    "eventTypes": {
+        "basic": [
+            {
+                "type": "stream.online",
+                "description": "notifications de début de stream"
+            },
+            {
+                "type": "stream.offline",
+                "description": "notifications de fin de stream"
+            },
+            {
+                "type": "channel.follow",
+                "version": "2",
+                "description": "nouveaux followers"
+            },
+            {
+                "type": "channel.subscribe",
+                "description": "nouveaux abonnés"
+            },
+            {
+                "type": "channel.subscription.gift",
+                "description": "cadeaux d'abonnements"
+            },
+            {
+                "type": "channel.subscription.message",
+                "description": "nouveaux renouvellements d'abonnement"
+            },
+            {
+                "type": "channel.raid",
+                "description": "raids entrants"
+            }
+        ],
+        "chat": [
+            {
+                "type": "channel.chat.message",
+                "description": "messages du chat"
+            }
+        ]
+    },
+    "display": {
+        "alerts": {
+            "enabled": true,
+            "duration": 6000,
+            "queueDelay": 500,
+            "confettiEnabled": true,
+            "confettiParticles": 300,
+            "confettiSpread": 360,
+            "confettiVelocity": 50,
+            "confettiTicks": 250,
+            "soundVolume": 0.8,
+            "types": {
+                "follow": {
+                    "icon": "<i class=\"fas fa-heart\"></i>",
+                    "title": "NOUVEAU FOLLOW",
+                    "gradientStart": "#3b82f6",
+                    "gradientEnd": "#2563eb",
+                    "border": "#3b82f6",
+                    "animationStyle": "fade",
+                    "defaultMessage": "Merci pour le follow !"
+                },
+                "sub": {
+                    "icon": "<i class=\"fas fa-star\"></i>",
+                    "title": "NOUVEAU SUB",
+                    "gradientStart": "#10b981",
+                    "gradientEnd": "#065f46",
+                    "border": "#10b981",
+                    "animationStyle": "zoom",
+                    "defaultMessage": "Merci pour le sub !"
+                },
+                "subs_gift": {
+                    "icon": "<i class=\"fas fa-gift\"></i>",
+                    "title": "SUBS GIFT",
+                    "gradientStart": "#10b981",
+                    "gradientEnd": "#065f46",
+                    "border": "#10b981",
+                    "animationStyle": "zoom",
+                    "defaultMessage": "Merci pour les sub gifts !"
+                },
+                "raid": {
+                    "icon": "<i class=\"fas fa-users\"></i>",
+                    "title": "RAID",
+                    "gradientStart": "#dc2626",
+                    "gradientEnd": "#b91c1c",
+                    "border": "#dc2626",
+                    "animationStyle": "slide",
+                    "defaultMessage": "Merci pour le raid !"
+                },
+                "bits": {
+                    "icon": "<i class=\"fas fa-gem\"></i>",
+                    "title": "BITS",
+                    "gradientStart": "#9333ea",
+                    "gradientEnd": "#7e22ce",
+                    "border": "#9333ea",
+                    "animationStyle": "bounce",
+                    "defaultMessage": "Merci pour les bits !"
+                }
+            }
+        },
+        "animations": {
+            "enabled": true,
+            "particles": {
+                "enabled": true,
+                "count": 30,
+                "duration": [5, 8]
+            },
+            "stars": {
+                "enabled": true,
+                "count": 80,
+                "duration": [1.5, 2.5]
+            },
+            "meteors": {
+                "enabled": false,
+                "count": 8,
+                "duration": [2, 3]
+            },
+            "circuitLines": {
+                "enabled": false,
+                "horizontal": 10,
+                "vertical": 8,
+                "duration": 6
+            },
+            "dvdLogo": {
+                "enabled": true,
+                "speed": 2,
+                "updateInterval": 16
+            }
+        },
+        "chat": {
+            "enabled": {
+                "starting": true,
+                "index": true,
+                "ending": true
+            },
+            "maxMessages": 50,
+            "scrollBehavior": "smooth",
+            "defaultColor": "#3b82f6",
+            "badgeSize": "2vh"
+        },
+        "panels": {
+            "left": {
+                "enabled": false,
+                "interval": 300000,
+                "duration": 15000,
+                "firstDelay": 30000,
+                "timerColor": "#ef4444"
+            },
+            "bottom": {
+                "enabled": false,
+                "interval": 180000,
+                "duration": 20000,
+                "firstDelay": 10000,
+                "content": {
+                    "infoTexts": [
+                        "twitch.tv/votre_chaine",
+                        "discord.gg/votre_serveur",
+                        "votresite.fr"
+                    ],
+                    "scrollingText": "Bienvenue sur le stream ! Configurez ce message depuis l'assistant de configuration."
+                }
+            }
+        },
+        "stats": {
+            "animationDuration": 1000,
+            "updateInterval": 30000,
+            "simulateData": true
+        },
+        "pause": {
+            "messages": [
+                "🎮 Pause technique - On revient tout de suite !",
+                "☕ Petite pause café - Restez connectés !",
+                "💬 N'hésitez pas à discuter en attendant !",
+                "🔧 Quelques ajustements - Merci de patienter !",
+                "⏱️ Pause rapide - On est de retour bientôt !",
+                "🎵 Pause musicale - Profitez du son !",
+                "🍕 Pause déjeuner - À tout de suite !",
+                "🛠️ Mise à jour en cours - Patience !",
+                "🎯 Préparation du prochain segment !"
+            ],
+            "progressMessages": [
+                "Reprise imminente...",
+                "Préparation en cours...",
+                "Presque prêt...",
+                "Derniers réglages...",
+                "De retour dans un instant..."
+            ]
+        },
+        "layout": {},
+        "texts": {},
+        "textStyles": {},
+        "customTexts": {},
+        "themes": {
+            "starting": {
+                "primary": "#a855f7",
+                "secondary": "#8b45f6",
+                "accent": "#7c3aed",
+                "background": "#1e1b4b",
+                "surface": "#1e293b",
+                "text": "#e2e8f0",
+                "mutedText": "#94a3b8",
+                "panelBg": "#0f172a",
+                "panelBorder": "#8b45f6"
+            },
+            "index": {
+                "primary": "#a855f7",
+                "secondary": "#8b45f6",
+                "accent": "#1e293b",
+                "background": "#0f172a",
+                "surface": "#1e293b",
+                "text": "#e2e8f0",
+                "mutedText": "#94a3b8",
+                "panelBg": "#111827",
+                "panelBorder": "#8b45f6"
+            },
+            "pause": {
+                "primary": "#a855f7",
+                "secondary": "#8b45f6",
+                "accent": "#7c3aed",
+                "background": "#0f172a",
+                "surface": "#111827",
+                "text": "#e2e8f0",
+                "mutedText": "#94a3b8",
+                "panelBg": "#0b1220",
+                "panelBorder": "#a855f7"
+            },
+            "ending": {
+                "primary": "#c084fc",
+                "secondary": "#a855f7",
+                "accent": "#8b45f6",
+                "background": "#0f172a",
+                "surface": "#1e293b",
+                "text": "#e2e8f0",
+                "mutedText": "#94a3b8",
+                "panelBg": "#0b1220",
+                "panelBorder": "#c084fc"
+            }
+        },
+        "debug": {
+            "enabled": false,
+            "logLevel": "info",
+            "showWebSocketLogs": true,
+            "showAlertLogs": true
+        }
+    }
+}

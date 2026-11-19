@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="css/overlay-common.css">
+    <link rel="stylesheet" href="css/twitch-widgets.css">
     <link rel="stylesheet" href="css/pause.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
 </head>
@@ -34,11 +35,11 @@
     </div>
 
     <!-- Indicateur de pause avec animation -->
-    <div class="pause-indicator neon-border">
+    <div class="pause-indicator neon-border" data-scene-el="pauseIndicator" data-scene-scale-text>
         <div class="pause-icon">
             <i class="fas fa-pause"></i>
         </div>
-        <div class="pause-indicator-label">PAUSE</div>
+        <div class="pause-indicator-label" data-scene-text="pauseIndicatorLabel">PAUSE</div>
         <div class="pulse-dots">
             <div class="pulse-dot"></div>
             <div class="pulse-dot"></div>
@@ -47,27 +48,19 @@
     </div>
 
     <div class="overlay">
-        <div>
+        <div data-scene-el="titleBlock">
             <h1 class="shine-effect pause-title" style="font-family: 'Baron Neue Black', Arial, sans-serif;">
                 <i class="fas fa-pause pause-icon-title"></i>
-                PAUSE
+                <span data-scene-text="pauseTitle">PAUSE</span>
             </h1>
-            <p class="typing-text pause-subtitle" style="font-family: 'Baron Neue Black', Arial, sans-serif;">
+            <p class="typing-text pause-subtitle" style="font-family: 'Baron Neue Black', Arial, sans-serif;" data-scene-text="pauseSubtitle">
                 Le stream reprendra dans un instant...
             </p>
 
-            <!-- Messages de pause rotatifs -->
-            <div class="pause-messages">
-                <div class="pause-message active">🎮 Pause technique - On revient tout de suite !</div>
-                <div class="pause-message">☕ Petite pause café - Restez connectés !</div>
-                <div class="pause-message">💬 N'hésitez pas à discuter en attendant !</div>
-                <div class="pause-message">🔧 Quelques ajustements - Merci de patienter !</div>
-                <div class="pause-message">⏱️ Pause rapide - On est de retour bientôt !</div>
-                <div class="pause-message">🎵 Pause musicale - Profitez du son !</div>
-                <div class="pause-message">🍕 Pause déjeuner - À tout de suite !</div>
-                <div class="pause-message">🛠️ Mise à jour en cours - Patience !</div>
-                <div class="pause-message">🎯 Préparation du prochain segment !</div>
-            </div>
+            <!-- Messages de pause rotatifs : générés dynamiquement par pause.js depuis
+                 cfg.pause.messages (paramétrable dans /settings) plutôt qu'en dur ici, pour
+                 supporter un nombre de messages variable. -->
+            <div class="pause-messages" id="pauseMessages"></div>
 
             <!-- Barre de progression animée -->
             <div class="pause-progress-container">
@@ -80,30 +73,51 @@
     </div>
 
     <!-- Horloge en temps réel -->
-    <div class="real-time-clock">
+    <div class="real-time-clock" data-scene-el="realTimeClock" data-scene-scale-text>
         <i class="fas fa-clock"></i>
         <span id="currentTime"></span>
     </div>
 
     <!-- Message de retour bientôt -->
-    <div class="back-soon-banner">
+    <div class="back-soon-banner" data-scene-el="backSoonBanner" data-scene-scale-text>
         <div class="banner-content">
             <i class="fas fa-arrow-right"></i>
-            <span>De retour bientôt</span>
+            <span data-scene-text="backSoonText">De retour bientôt</span>
             <i class="fas fa-arrow-left"></i>
         </div>
     </div>
 
     <!-- Compteur de spectateurs en pause -->
-    <div class="viewers-waiting">
+    <div class="viewers-waiting" data-scene-el="viewersWaiting" data-scene-scale-text>
         <i class="fas fa-users"></i>
         <span id="viewersCount">---</span>
-        <span>en attente</span>
+        <span data-scene-text="viewersWaitingLabel">en attente</span>
+    </div>
+
+    <!-- Alertes Twitch : .alert-container est la ZONE (cadre positionné depuis l'éditeur de
+         scène, matérialisé en pointillés en mode édition), .alert-box l'alerte elle-même,
+         mise à l'échelle au plus grand format qui tient dans la zone (fitAlertBox). -->
+    <div class="alert-container" id="alertContainer" data-scene-el="alertContainer" data-scene-alert-zone>
+        <div class="alert-box" id="alertBox">
+            <img class="alert-media" id="alertMedia" alt="">
+            <div class="alert-icon" id="alertIcon">
+                <i class="fas fa-heart"></i>
+            </div>
+            <div class="alert-body">
+                <div class="alert-title" id="alertTitle">NOUVEAU FOLLOWER</div>
+                <div class="alert-username" id="alertUsername">Username</div>
+                <div class="alert-message" id="alertMessage">Merci pour le follow !</div>
+                <div class="alert-amount" id="alertAmount" style="display: none;">5.00</div>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->
     <script src="js/config.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/twitch-widgets.js"></script>
     <script src="js/overlay-common.js"></script>
+    <script src="js/scene-editor-bridge.js"></script>
     <script src="js/pause.js"></script>
 </body>
 

@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="css/overlay-common.css">
+    <link rel="stylesheet" href="css/twitch-widgets.css">
     <link rel="stylesheet" href="css/ending.css">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
 </head>
@@ -36,7 +37,7 @@
     <div class="overlay">
         <div>
             <!-- Statistiques du stream -->
-            <div class="stream-stats neon-border">
+            <div class="stream-stats neon-border" data-scene-el="streamStats" data-scene-scale-text>
                 <div class="stat-item">
                     <i class="fas fa-clock stat-icon"></i>
                     <span class="stat-value" id="streamDurationText">...</span>
@@ -58,39 +59,48 @@
                     <span>nouveaux subs</span>
                 </div>
             </div>
-            <h1 style="font-family: 'Baron Neue Black', Arial, sans-serif;">Merci d'avoir regardé !</h1>
-            <p style="font-family: 'Baron Neue Black', Arial, sans-serif;">
-                À bientôt pour une nouvelle aventure !
-            </p>
-            <div class="thanks-message" style="font-family: 'Baron Neue Black', Arial, sans-serif;">
-                Votre soutien compte énormément ! 💖
+            <div data-scene-el="titleBlock">
+                <h1 style="font-family: 'Baron Neue Black', Arial, sans-serif;" data-scene-text="endingTitle">Merci d'avoir regardé !</h1>
+                <p style="font-family: 'Baron Neue Black', Arial, sans-serif;" data-scene-text="endingSubtitle">
+                    À bientôt pour une nouvelle aventure !
+                </p>
+                <div class="thanks-message" style="font-family: 'Baron Neue Black', Arial, sans-serif;" data-scene-text="endingThanks">
+                    Votre soutien compte énormément ! 💖
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Alertes Twitch -->
-    <div class="alert-container" id="alertContainer">
-        <div class="alert-icon" id="alertIcon">
-            <i class="fas fa-heart"></i>
+    <!-- Alertes Twitch : .alert-container est la ZONE (cadre positionné depuis l'éditeur de
+         scène, matérialisé en pointillés en mode édition), .alert-box l'alerte elle-même,
+         mise à l'échelle au plus grand format qui tient dans la zone (fitAlertBox). -->
+    <div class="alert-container" id="alertContainer" data-scene-el="alertContainer" data-scene-alert-zone>
+        <div class="alert-box" id="alertBox">
+            <img class="alert-media" id="alertMedia" alt="">
+            <div class="alert-icon" id="alertIcon">
+                <i class="fas fa-heart"></i>
+            </div>
+            <div class="alert-body">
+                <div class="alert-title" id="alertTitle">NOUVEAU FOLLOWER</div>
+                <div class="alert-username" id="alertUsername">Username</div>
+                <div class="alert-message" id="alertMessage">Merci pour le follow !</div>
+                <div class="alert-amount" id="alertAmount" style="display: none;">5.00</div>
+            </div>
         </div>
-        <div class="alert-title" id="alertTitle">NOUVEAU FOLLOWER</div>
-        <div class="alert-username" id="alertUsername">Username</div>
-        <div class="alert-message" id="alertMessage">Merci pour le follow !</div>
-        <div class="alert-amount" id="alertAmount" style="display: none;">5.00</div>
     </div>
 
     <!-- Chat Twitch -->
-    <div class="chat-panel neon-border">
+    <div class="chat-panel neon-border" data-scene-el="chatPanel">
         <div class="chat-header">
             <i class="fas fa-comments"></i>
-            CHAT
+            <span data-scene-text="chatHeaderLabel">CHAT</span>
         </div>
         <div class="chat-container" id="chatContainer">
         </div>
     </div>
 
     <!-- Barre du bas -->
-    <div class="bottom-bar neon-border">
+    <div class="bottom-bar neon-border" data-scene-el="bottomBar">
         <div class="bottom-info">
             <i class="fab fa-twitch info-icon"></i><span class="info-text"></span>
         </div>
@@ -103,7 +113,10 @@
     </div>
 
     <script src="js/config.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/twitch-widgets.js"></script>
     <script src="js/overlay-common.js"></script>
+    <script src="js/scene-editor-bridge.js"></script>
     <script src="js/ending.js"></script>
 
 </body>

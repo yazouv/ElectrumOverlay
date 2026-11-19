@@ -1,647 +1,250 @@
-# 🎮 Electrum Overlay - Twitch Overlay System with EventSub
+# 🎮 Electrum Overlay — Twitch overlay desktop app
 
-A complete overlay system for Twitch with EventSub integration, real-time animations and stream statistics.
+A Windows app that runs your Twitch stream overlays: real-time alerts (follow, sub, raid, bits…), chat, goals, polls, predictions, hype train, live stats, and a scene editor to place everything with the mouse. Everything is managed from the app, no config file editing required.
 
 > Ce readme est également disponible en [français](README.md).
+
+![Dashboard](docs/screenshots/tableau-de-bord.png)
+
+*Screenshots show the French interface. The app is also available in English: Settings › Application › Interface language (English is picked automatically on first launch if Windows isn't in French).*
 
 ## 📋 Table of Contents
 
 - [🚀 Features](#-features)
-- [📦 Installation](#-installation)
-- [⚙️ Configuration](#️-configuration)
-- [🔧 Twitch Configuration](#-twitch-configuration)
-- [🌐 Webhook Tunnel (ngrok)](#-webhook-tunnel-ngrok)
-- [🚛 TruckyApp Integration](#-truckyapp-integration)
-- [🏃‍♂️ Launch](#️-launch)
-- [📹 OBS Overlays](#-obs-overlays)
-- [🧪 Tests](#-tests)
-- [📷 Preview/Gallery](#-previewgallery)
-- [🎨 Customization](#-customization)
+- [📷 Preview](#-preview)
+- [📥 Installation](#-installation)
+- [🧙 First launch](#-first-launch)
+- [📹 Adding the overlays to OBS](#-adding-the-overlays-to-obs)
+- [🖥️ Day-to-day use](#️-day-to-day-use)
+- [🧩 Scene editor](#-scene-editor)
+- [🧪 Testing without going live](#-testing-without-going-live)
+- [💾 Backups](#-backups)
+- [🤝 Sharing a profile](#-sharing-a-profile)
+- [🔄 Updates](#-updates)
+- [🚛 TruckyApp integration](#-truckyapp-integration)
+- [🎛️ Stream Deck plugin](#️-stream-deck-plugin)
 - [🛠️ Development](#️-development)
 - [❗ Troubleshooting](#-troubleshooting)
 
 ## 🚀 Features
 
-### ✨ Real-time alerts
-- **New followers** with animations
-- **New subscribers** and renewals
-- **Subscription gifts** (sub gifts)
-- **Incoming raids** with special effects
-- **Bits donations** with confetti
-- **Alert queue** to avoid overlaps
+### ✨ Twitch alerts and events
+- Follows, subs and resubs, gifted subs, raids, bits, with confetti and a queue so alerts never overlap
+- Live **goals**, **polls**, **predictions** and **hype train** on the overlay: they appear when they start, show the result at the end, then disappear
+- **Recent events** on the dashboard, with a **Replay** button to re-run an alert you missed
+- Direct connection to Twitch (EventSub over WebSocket): no tunnel, no port to open
 
-### 🎭 Animated overlays
-- **Starting page**: Countdown before stream
-- **Main page**: Real-time statistics + alerts
-- **Ending page**: End of stream screen
-- **Pause page**: Stream break screen
-- **Advanced CSS animations** with particles
-- **Responsive design** for all screens
+### 🧩 Scene editor
+- Place, resize and tweak every element with the mouse, with a live preview
+- About twenty elements: text, images, clock, badges, rotating messages, chat, scrolling chat, alerts, stream data, goal, poll, prediction, hype train, Spotify, keyboard/mouse keys, Trucky panel…
+- Four ready-made scenes (Starting, Live, Pause, Ending) plus as many custom scenes as you like
 
-### 📊 Real-time statistics
-- Follower count
-- Subscriber count
-- Current viewers
-- Automatic updates via WebSocket
+### 🎨 Customization
+- **For every kind of stream**: gaming, just chatting, creative or driving simulation; your logo and colors on every screen
+- **Custom widgets**: build your own elements in HTML/CSS/JS (Twitch events, stats, theme), import them and place them in the editor; full documentation in the app (Widgets page)
+- **Automatic profile per game**: when the Twitch category changes, the theme and scenes follow
+- Theme profiles (several ready-made ones), colors per page, animations (particles, stars, meteors, DVD logo), alerts, chat, panels
+- Changes apply immediately to the overlays open in OBS
+- The app itself takes the main color of the active profile
 
-## 📦 Installation
+### 🖥️ A real desktop app
+- Lightweight: Rust engine, and the window frees its memory when closed
+- Stays in the notification area to keep serving the overlays, even with the window closed
+- Interface in English or French (overlays included)
+- Optional launch at Windows startup (minimized or not)
+- Automatic config backups, one-click restore
+- Signed automatic updates
+- Custom chat commands, Spotify and TruckyApp integrations, key display, Stream Deck plugin
 
-### Prerequisites
-- **Node.js** 18+ ([Download](https://nodejs.org/))
-- **npm** (included with Node.js)
-- **Twitch account**
-- **ngrok** (integrated) or optional manual installation ([Download](https://ngrok.com/))
+## 📷 Preview
 
-<!-- Blue info box -->
-<div style="border-left: 4px solid #007bff; padding-left: 10px; margin-bottom: 20px;">
-    <strong>Information:</strong> Get the free version: <a>https://ngrok.com/pricing</a>
-    <br>
-    <i>"Run your pre-release versions or internal apps on ngrok. Free forever."</i>
-</div>
+> An overlay during a stream: hype train, goal, poll, prediction and chat
 
-### 1. Clone the project
-```bash
-git clone https://github.com/yazouv/ElectrumOverlay.git
-cd electrum-overlay
-```
+![Live overlay](docs/screenshots/overlay-en-direct.png)
 
-### 2. Install dependencies
-```bash
-npm install
-```
+> The scene editor
 
-### 3. Prepare configuration
-```bash
-cp src/config/config.example.js src/config/config.js
-```
+![Scene editor](docs/screenshots/editeur-de-scene.png)
 
-### 4. Project structure
-```
-electrum-overlay/
-├── 📁 src/
-│   ├── 📁 config/
-│   │   └── config.js          # Backend configuration (sensitive)
-│   ├── 📁 routes/
-│   │   └── api.js             # Main API routes
-│   └── 📁 services/
-│       ├── EventSubManager.js # EventSub management
-│       ├── TwitchAuth.js      # Twitch authentication
-│       ├── WebhookHandler.js  # Webhook processing
-│       └── StreamStatsManager.js # Stream statistics
-├── 📁 public/
-│   ├── index.html             # Main overlay
-│   ├── starting.html          # Starting page
-│   ├── ending.html            # Ending page
-│   ├── pause.html             # Pause page
-│   ├── 📁 js/
-│   │   ├── config.js          # Frontend configuration (public)
-│   │   ├── overlay-common.js  # Common functions
-│   │   ├── index.js           # Main page logic
-│   │   ├── starting.js        # Starting logic
-│   │   ├── ending.js          # Ending logic
-│   │   └── pause.js           # Pause logic
-│   └── 📁 css/
-│       ├── overlay-common.css # Common styles
-│       ├── index.css          # Main page styles
-│       ├── starting.css       # Starting styles
-│       ├── ending.css         # Ending styles
-│       └── pause.css          # Pause styles
-├── package.json
-├── server.js                  # Main server
-├── ConfigOBS.json             # OBS configuration
-```
+> Adding an element
 
-## ⚙️ Configuration
+![Adding an element](docs/screenshots/editeur-ajout.png)
 
-The system uses **two separate configuration files**:
+> Settings
 
-### 📋 1. Backend Configuration (`src/config/config.js`)
-**⚠️ SENSITIVE - Do not share publicly**
+![Settings](docs/screenshots/parametres-themes.png)
 
-#### 🔐 WEBHOOK_SECRET Generation
-The `WEBHOOK_SECRET` is a cryptographic secret used to secure Twitch EventSub webhooks. **You must generate it yourself**:
+> Starting, pause and ending screens
 
-```javascript
-// In Node.js (console or script)
-const crypto = require('crypto');
-const webhookSecret = crypto.randomBytes(32).toString('hex');
-console.log('WEBHOOK_SECRET:', webhookSecret);
-```
-
-**Important characteristics:**
-- **32 characters minimum** (64 hexadecimal characters recommended)
-- **Random and unique** for your application
-- **Never share** or commit to Git
-- **Used to verify** that webhooks actually come from Twitch
-
-#### ⚙️ EventSub Events Configuration
-Don't forget to configure conditions for certain events in `src/config/config.js` (line 50-51):
-
-```javascript
-"condition": {
-    "broadcaster_user_id": "197983290",     // Your User ID
-    "moderator_user_id": "197983290"        // Same User ID to be moderator
-}
-```
-
-**Important:** Replace `"197983290"` with your own Twitch User ID obtained in the next step.
-
-### 🌐 2. Frontend Configuration (`public/js/config.js`)
-**✅ PUBLIC - Can be shared**
-
-## 🔧 Twitch Configuration
-
-### 1. 🏗️ Create a Twitch application
-
-1. Go to [Twitch Developers Console](https://dev.twitch.tv/console)
-2. Click on **"Register Your Application"**
-3. Fill in the information:
-   - **Name**: `My Twitch Overlay`
-   - **OAuth Redirect URLs**: `http://localhost:8080/auth-callback`
-   - **Category**: `Application Integration`
-   - **Client Type**: Confidential
-4. Click **"Create"**
-5. Note your **Client ID** and **Client Secret** and put them in `src/config/config.js`
-
-### 2. 🆔 Get your User ID
-
-1. Get your User ID from: [StreamWeasels](https://www.streamweasels.com/tools/convert-twitch-username-to-user-id/)
-2. Put it in `public/js/config.js` > OVERLAY_CONFIG.twitch.broadcasterId
-3. Also put it in `src/config/config.js` > twitch.BROADCASTER_ID
-
-### 3. 🔑 Get an Access Token
-
-#### Method 1: OAuth Flow (Recommended)
-1. Start the server: `npm start`
-2. Go to `http://localhost:8080/auth-url`
-3. Authorize the application
-4. The token will be displayed in the console
-5. Put it in `src/config/config.js` > twitch.USER_ACCESS_TOKEN
-
-#### Method 2: Token Generator
-1. Go to [Twitch Token Generator](https://twitchtokengenerator.com/)
-2. Select the necessary scopes
-3. Generate the token
-4. Put it in `src/config/config.js` > twitch.USER_ACCESS_TOKEN
-
-## 🌐 Webhook Tunnel (ngrok)
-
-EventSub webhooks require a public HTTPS URL. **ngrok is integrated and enabled by default** in ElectrumOverlay:
-
-### 🔄 Automatic mode (default)
-The system automatically starts ngrok and configures the webhook URL. In `src/config/config.js`:
-```javascript
-"ngrok": {
-    "ENABLED": true,  // ngrok enabled by default
-},
-```
-
-**Advantages:**
-- ✅ Automatic configuration
-- ✅ No need to manually manage ngrok
-- ✅ Webhook URL updated automatically
-
-### ⚙️ Manual mode (optional)
-If you prefer to manage ngrok manually, disable automatic mode:
-
-#### 1. 🔧 Disable automatic ngrok
-In `src/config/config.js`:
-```javascript
-"ngrok": {
-    "ENABLED": false,  // Disable automatic ngrok
-},
-```
-
-#### 2. 📥 Install ngrok
-- Download from [ngrok.com](https://ngrok.com/)
-- Or via npm: `npm install -g ngrok`
-
-#### 3. 🚀 Start the tunnel
-```bash
-# In a separate terminal
-ngrok http 8080
-```
-
-#### 4. 📋 Copy the URL
-Ngrok will display something like:
-```
-Forwarding  https://abcdefgijkl.ngrok-free.app -> http://localhost:8080
-```
-
-#### 5. ⚙️ Configure the webhook URL
-In `src/config/config.js`:
-```javascript
-WEBHOOK_URL: "https://abcdefgijkl.ngrok-free.app/eventsub"
-```
-
-#### 6. ⚠️ Important note
-- The ngrok URL changes with each restart (free version)
-- Remember to update the configuration after each restart
-
-## 🚛 TruckyApp Integration
-
-ElectrumOverlay includes **TruckyApp integration enabled by default** for trucking simulation streamers:
-
-### 🔄 Enabled mode (default)
-TruckyApp integration automatically fetches your game statistics. In `src/config/config.js`:
-```javascript
-"trucky": {
-    "enable": true,                    // TruckyApp enabled by default
-    "USER_ID": "90694",               // Replace with your Trucky user ID
-},
-```
-
-**Features:**
-- ✅ Automatic user data retrieval
-- ✅ Display of last completed job
-- ✅ Company statistics (if applicable)
-- ✅ Seamless integration with overlays
-
-### ⚙️ TruckyApp Configuration
-
-#### 1. 🆔 Get your TruckyApp User ID
-1. Go to [TruckyApp](https://truckyapp.com/)
-2. Log in to your account
-3. Go to your profile
-4. The user ID is found in the URL: `https://truckyapp.com/user/[YOUR_ID]`
-
-#### 2. 🔧 Configure the ID
-In `src/config/config.js`, replace `"90694"` with your ID:
-```javascript
-"trucky": {
-    "enable": true,
-    "USER_ID": "YOUR_TRUCKY_ID",
-},
-```
-
-### 🚫 Disable TruckyApp (optional)
-If you don't play trucking simulation games, you can disable this feature:
-
-In `src/config/config.js`:
-```javascript
-"trucky": {
-    "enable": false,              // Disable TruckyApp
-    "USER_ID": "90694",
-},
-```
-
-**Note:** Even when disabled, this configuration doesn't affect other system functionalities.
-
-## 🏃‍♂️ Launch
-
-### 🚀 Complete startup
-
-The system automatically starts ngrok by default. If ngrok is enabled:
-
-1. **Start the server**:
-```bash
-npm start
-```
-
-2. **Access the overlays**:
-   - Main: `http://localhost:8080`
-   - Starting: `http://localhost:8080/starting.html`
-   - Ending: `http://localhost:8080/ending.html`
-   - Pause: `http://localhost:8080/pause.html`
-
-If you have disabled ngrok (manual mode):
-
-1. **Start ngrok** (terminal 1):
-```bash
-ngrok http 8080
-```
-
-2. **Update webhook URL** in `src/config/config.js`
-
-3. **Start the server** (terminal 2):
-```bash
-npm start
-```
-
-4. **Access the overlays**:
-   - Main: `http://localhost:8080`
-   - Starting: `http://localhost:8080/starting.html`
-   - Ending: `http://localhost:8080/ending.html`
-   - Pause: `http://localhost:8080/pause.html`
-
-### 📊 Available commands
-
-```bash
-npm start          # Start the server
-npm run dev        # Development mode (nodemon)
-npm run clean      # Clean EventSub subscriptions
-npm run setup      # Configuration assistant
-npm run config     # Update configuration
-```
-
-## 📹 OBS Overlays
-Use the `ConfigOBS.json` file to configure overlays in OBS:
-
-> This contains pre-configured scenes for overlays, with necessary sources.
-
-## 🧪 Tests
-
-### 🔧 With Twitch CLI
-
-1. **Install Twitch CLI**:
-   - [Installation Guide](https://dev.twitch.tv/docs/cli/)
-
-2. **Configure**:
-```bash
-twitch configure
-```
-
-3. **Test events**:
-```bash
-# Test follow
-twitch event trigger channel.follow --to-user-id=YOUR_USER_ID --from-user-id=123456
-
-# Test subscription
-twitch event trigger channel.subscribe --to-user-id=YOUR_USER_ID --user-id=123456
-
-# Test raid
-twitch event trigger channel.raid --to-user-id=YOUR_USER_ID --from-user-id=123456
-
-# Test bits
-twitch event trigger channel.cheer --to-user-id=YOUR_USER_ID --user-id=123456
-```
-
-### 🌐 Test via API
-
-```bash
-# Test webhook directly
-curl -X POST http://localhost:8080/eventsub \
-  -H "Content-Type: application/json" \
-  -d '{
-    "subscription": {
-      "type": "channel.follow",
-      "version": "1"
-    },
-    "event": {
-      "user_name": "TestUser",
-      "user_display_name": "TestUser"
-    }
-  }'
-```
-
-## 📷 Preview/Gallery
-> Starting page
-  
 ![Starting](./readme/starting.gif)
 
-> Intermission screen
-
-![Intermission](./readme/pause.gif)
-
-> Ending screen
+![Pause](./readme/pause.gif)
 
 ![Ending](./readme/ending.gif)
 
-<div style="border-left: 4px solid #007bff; padding-left: 10px; margin-bottom: 20px;">
-    <strong>Note:</strong> Overlays are designed to be used with OBS or any other compatible streaming software.
-</div>
+## 📥 Installation
 
-## 🎨 Customization
+1. Download the latest installer (`ElectrumOverlay_x.x.x_x64-setup.exe`) from the [Releases](https://github.com/Arkyan/ElectrumOverlay/releases) page.
+2. Run it and follow the steps.
+3. On first launch, the app takes you to the setup wizard.
 
-### 🎨 Modify colors
+**Already on version 2.x (Electron)?** Just install 3.0 over it. The old version is uninstalled automatically and your configuration (profiles, sounds, scenes) is kept as is. If the old version has automatic updates enabled, it offers to move to 3.0 on its own.
 
-In `public/js/config.js`:
+**Requirements:**
+- Windows 10 or 11
+- A Twitch account (the one you stream from)
+- For TruckyApp (optional): Google Chrome or Microsoft Edge
 
-```javascript
-theme: {
-    primary: '#3b82f6',      // Primary color
-    secondary: '#10b981',    // Secondary color
-    accent: '#f59e0b',       // Accent color
-    background: '#1f2937',   // Background
-    text: '#f9fafb'         // Text
-}
-```
+## 🧙 First launch
 
-### ✨ Customize alerts
+On first launch, a welcome screen lets you pick the language, your kind of stream (gaming, just chatting, creative, driving simulation), colors, animations and your logo. Everything can be changed later (**Settings › Application › Run the first-launch assistant again**).
 
-```javascript
-alerts: {
-    types: {
-        follow: {
-            icon: '<i class="fas fa-heart"></i>',          // Icon
-            title: 'NEW FOLLOW',                           // Title
-            gradient: 'linear-gradient(...)',              // Gradient
-            border: '#3b82f6',                             // Border color
-            defaultMessage: 'Thanks for the follow!'       // Default message
-        }
-    }
-}
-```
+The dashboard then shows a **Getting started** card (style, Twitch, OBS, test alert, scene) that ticks itself off as you go. Less obvious settings have a **?** bubble explaining them.
 
-### 🎭 Modify animations
+Then comes the Twitch wizard (**Configuration** in the menu), in three independent parts.
 
-In `public/css/overlay-common.css`:
+### 1. Twitch application
+1. Create an application at [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps):
+   - **OAuth Redirect URL**: `http://localhost:8080/auth-callback`
+   - **Category**: `Application Integration`
+   - **Client Type**: `Confidential`
+2. Copy the **Client ID** and **Client Secret** into the wizard.
 
-```css
-/* Alert appearance animation */
-.alert-container.show {
-    animation: slideInFromTop 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
+### 2. Twitch authorization
+Click **Authorize**: your browser opens Twitch's authorization page. Once approved, the authorized channel shows up in the app and the connection starts right away.
 
-/* Particle animation */
-.particle {
-    animation: particleFloat 3s infinite ease-in-out;
-}
-```
+The app asks for access to chat, follows, subs, bits, goals, polls, predictions and hype train. If you authorized the app with an older version, the **Twitch** card on the dashboard shows what is still inactive and offers to authorize again.
 
-### 📊 Configure panels
+### 3. Branding and integrations
+Main overlay color, bottom banner texts, and TruckyApp (optional).
 
-In `public/js/config.js`:
+## 📹 Adding the overlays to OBS
 
-```javascript
-panels: {
-    followers: {
-        enabled: true,           // Enable/disable
-        position: 'top-left',    // Position
-        updateInterval: 5000,    // Update interval (ms)
-        animationDuration: 300   // Animation duration (ms)
-    }
-}
-```
+The dashboard lists all your scenes with a **Copy** button. Add each URL in OBS as a **browser source** at 1920×1080:
+
+| Scene | URL |
+|---|---|
+| Starting | `http://localhost:8080/starting.html` |
+| Live | `http://localhost:8080/` |
+| Pause | `http://localhost:8080/pause.html` |
+| Ending | `http://localhost:8080/ending.html` |
+| Custom scene | `http://localhost:8080/scene/<id>` (URL shown on the dashboard) |
+
+Everything shown on a scene (chat, goal, poll…) is added from the **scene editor**: one OBS source per scene is enough.
+
+`ConfigOBS.json` contains ready-made OBS scenes (Starting, Game, Pause, Ending) to import.
+
+## 🖥️ Day-to-day use
+
+- **Dashboard**: Twitch and stream status (viewers, follows, subs, messages), quick tests, recent events with **Replay**, scene URLs for OBS.
+- **Settings**: profiles (with sharing and import), themes, alerts, panels, animations, chat, stats. Also **Application** (language, launch with Windows) and **Backups**.
+- **Chat commands**: automatic replies and overlay actions, with permissions and cooldowns.
+- **Integrations**: Spotify (now playing), TruckyApp, key display.
+- **Logs**: live log viewer, handy when something goes wrong.
+- Closing the window keeps the app in the notification area. To stop it: right-click the icon, then **Quit**.
+
+## 🧩 Scene editor
+
+Pick a scene on the left, then add elements with the **+** button: they are grouped by category, with a search box. Click an element to move it, resize it and adjust its properties (size, color, font, opacity…). Everything is saved automatically to the active profile.
+
+The **Goal**, **Poll**, **Prediction** and **Hype train** elements stay invisible on the overlay while nothing is running on Twitch. In the editor, a sample is shown so you can place them.
+
+## 🧪 Testing without going live
+
+The **Tests** page triggers fake events visible on the open overlays: follow, sub, gifted sub, raid, bits, chat message, stream start and end, plus a full goal, poll, prediction and hype train (about fifteen seconds each). Handy to tune the look before going live.
+
+## 💾 Backups
+
+An automatic backup is made once a day when the config has changed (the last 10 are kept), and you can create one at any time from **Settings › Backups**. They include every profile with its sounds and videos. Restoring keeps your current Twitch and Spotify connections and backs up the current state first, so a restore can always be undone.
+
+Location: `%APPDATA%\ElectrumOverlay\backups`.
+
+## 🤝 Sharing a profile
+
+**Settings › Profiles › Share…** creates a `.zip` file with the whole profile: settings (scenes, elements, colors, alerts) and, optionally, the sounds and videos as they are. You can add your name and a description. To import one, **Import…** (or drop the file on the section) shows a preview of its content before adding it.
+
+## 🔄 Updates
+
+The app checks for new versions at startup and regularly afterwards. An update downloads in the background, then a banner on the dashboard (and an entry in the tray icon menu) lets you install it in one click. Updates are signed: the app refuses any file that doesn't come from the project.
+
+## 🚛 TruckyApp integration
+
+For ETS2/ATS streamers: enable the integration in **Integrations** with your TruckyApp user ID (visible in your profile URL on [truckyapp.com](https://truckyapp.com/): `truckyapp.com/user/YOUR_ID`). The **Trucky panel** element then shows your latest job and your company stats.
+
+## 🎛️ Stream Deck plugin
+
+The "ElectrumOverlay Deck" plugin controls the app from your keys:
+- **Test alert**: triggers a test follow, sub, raid, bits…
+- **Activate a profile**: the icon shows live whether the profile is active
+- **Show a panel**: left panel or bottom banner, immediately
+- **Live stats**: viewers, follows, subscribers or chat messages on a key
+
+Installation: download `com.electrumvtc.overlay.streamdeck.streamDeckPlugin` from the [Releases](https://github.com/Arkyan/ElectrumOverlay/releases) page and double-click it. The app must be running for the keys to work. To modify the plugin, see `streamdeck-plugin/README.md`.
 
 ## 🛠️ Development
 
-### 🔧 Development mode
+### Layout
+
+```
+Cargo.toml                 # Rust workspace
+crates/electrum-core/      # config, profiles, scene editor, backups (no UI)
+crates/electrum-server/    # HTTP + WebSocket server, Twitch EventSub, Spotify, Trucky, app pages
+src-tauri/                 # Windows app (window, tray icon, updates, startup)
+public/                    # OBS overlays (HTML/CSS/JS)
+streamdeck-plugin/         # Stream Deck plugin: manifest, icons, settings pages
+crates/electrum-deck/      # Stream Deck plugin (native executable)
+xtask/                     # cargo xtask release / plugin
+```
+
+### Running from source
+
+Requirements: [Rust](https://rustup.rs/) and the Tauri CLI (once):
 
 ```bash
-npm run dev
+cargo install tauri-cli --version "^2" --locked
 ```
 
-The server automatically restarts when changes are made.
+Run the app:
 
-### 📁 Code structure
-
-#### Backend (`src/`)
-- **`services/`**: Business services
-  - `EventSubManager.js`: EventSub subscription management
-  - `TwitchAuth.js`: Twitch authentication
-  - `WebhookHandler.js`: Webhook processing
-  - `StreamStatsManager.js`: Real-time statistics
-
-- **`routes/`**: Express routes
-  - `api.js`: Main API
-  - `api-fixed.js`: API with fixed data
-
-- **`config/`**: Configuration
-  - `config.js`: Sensitive backend configuration
-
-#### Frontend (`public/`)
-- **`js/`**: JavaScript scripts
-  - `config.js`: Public configuration
-  - `overlay-common.js`: Shared functions
-  - `index.js`, `starting.js`, `ending.js`, `pause.js`: Page-specific logic
-
-- **`css/`**: CSS styles
-  - `overlay-common.css`: Shared styles
-  - Page-specific CSS files
-
-### 🔌 API Endpoints
-
-```javascript
-GET  /                          // Main page
-GET  /starting.html             // Starting page
-GET  /ending.html               // Ending page
-GET  /pause.html                // Pause page
-GET  /auth                      // Twitch authentication
-GET  /auth-callback             // OAuth callback
-POST /eventsub                  // EventSub webhooks
-GET  /api/stream-stats          // Stream statistics in JSON
-GET  /api/stream-stats-html     // Stream statistics in HTML
+```bash
+cargo tauri dev
 ```
 
-### 🔄 WebSocket Events
+Run the tests:
 
-```javascript
-// Client side
-socket.on('alert', (data) => {
-    // New alert received
-});
-
-socket.on('stats-update', (data) => {
-    // Statistics update
-});
-
-// Server side
-wss.broadcast('alert', alertData);
-wss.broadcast('stats-update', statsData);
+```bash
+cargo test
 ```
+
+The app uses the same config as the installed version (`%APPDATA%\ElectrumOverlay\config`). To work on a copy, set `ELECTRUM_CONFIG_DIR` before launching.
+
+Technical details (in French): [docs/MIGRATION-RUST.md](docs/MIGRATION-RUST.md) (architecture, differences from 2.x), [docs/FORMATS.md](docs/FORMATS.md) (file formats), [docs/RELEASE-RUST.md](docs/RELEASE-RUST.md) (publishing a release).
 
 ## ❗ Troubleshooting
 
-### 🚫 Common errors
+#### "Port 8080 unavailable"
+Another instance is already running: check the notification area, or close the old 2.x version if it is still open.
 
-#### 1. "ECONNREFUSED" on startup
-```
-Cause: Port already in use
-Solution: Change port in config.js or stop the process
-```
+#### Alerts don't come through
+1. On the dashboard, the **Twitch** card should say **Connected**.
+2. If it reports a token problem or inactive features, authorize Twitch again from **Configuration**.
+3. Check **Logs** for details.
 
-#### 2. Webhooks not received
-```
-Cause: Incorrect or expired ngrok URL
-Solution: 
-1. Check that ngrok is working
-2. Update WEBHOOK_URL in config.js
-3. Restart the server
-```
+#### An overlay doesn't show the latest changes in OBS
+Right-click the browser source › **Properties** › **Refresh cache of current page**.
 
-#### 3. Alerts not displayed
-```
-Cause: EventSub or WebSocket configuration
-Solution:
-1. Check server logs
-2. Test with Twitch CLI
-3. Check token scopes
-```
-
-#### 4. "Token expired" or "401 Unauthorized"
-```
-Cause: Expired access token
-Solution: Generate a new access token
-```
-
-### 📋 Health checks
-
-#### 1. Check configuration
-```bash
-# Test configuration
-npm run config
-```
-
-#### 2. Check EventSub subscriptions
-```bash
-# List active subscriptions
-curl -X GET 'https://api.twitch.tv/helix/eventsub/subscriptions' \
--H 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
--H 'Client-Id: YOUR_CLIENT_ID'
-```
-
-#### 3. Clean subscriptions
-```bash
-# Remove all subscriptions
-npm run clean
-```
-
-#### 4. Detailed logs
-
-Enable logs in `public/js/config.js`:
-```javascript
-debug: {
-    enabled: true,              // Enable debug logs
-    websocket: true,            // WebSocket logs
-    alerts: true,               // Alert logs
-    api: true                   // API logs
-}
-```
-
-### 🔧 Debugging tools
-
-#### 1. Browser console
-- Open F12 → Console
-- Check JavaScript errors
-- View WebSocket messages
-
-#### 2. Server logs
-- Logs appear in the terminal
-- Format: `[TIMESTAMP] [LEVEL] Message`
-
-#### 3. Manual endpoint testing
-```bash
-# Test stats API
-curl http://localhost:8080/api/stats
-
-# Test webhook
-curl -X POST http://localhost:8080/eventsub \
-  -H "Content-Type: application/json" \
-  -d '{"test": true}'
-```
-
-### 📞 Support
-
-1. **Check logs** to identify the error
-2. **Consult Twitch documentation**: [EventSub Guide](https://dev.twitch.tv/docs/eventsub/)
-3. **Clean and restart**: `npm run clean` then restart
+#### Two-PC streaming
+From another PC on the network, the overlays work (replace `localhost` with the address of the PC running the app), but the app, its settings and its APIs are only available from the PC it runs on. The Stream Deck plugin must therefore be on that PC.
 
 ---
 
 ## 📄 License
 
-MIT License - See the `LICENSE` file for more details.
+MIT, see the `LICENSE` file.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
-
-1. Fork the project
-2. Create a branch for your feature
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+Contributions are welcome! See `CONTRIBUTING.md`. In short: fork, create a branch, commit, open a Pull Request.
 
 ---
 

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head lang="fr">
+    <title>Activer un profil</title>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+</head>
+
+<body>
+    <sdpi-item label="Profil">
+        <!-- La liste vient du plugin (datasource) : affichée comme du texte, et sans appel direct
+             au serveur depuis cette fenêtre (bloqué par le navigateur, autre origine). -->
+        <sdpi-select setting="profileId" datasource="getProfiles" hot-reload placeholder="Choisis un profil">
+        </sdpi-select>
+    </sdpi-item>
+
+    <details>
+        <summary>Avancé</summary>
+        <sdpi-item label="Hôte">
+            <sdpi-textfield id="hostField" setting="host" placeholder="localhost"></sdpi-textfield>
+        </sdpi-item>
+        <sdpi-item label="Port">
+            <sdpi-textfield id="portField" setting="port" placeholder="8080"></sdpi-textfield>
+        </sdpi-item>
+    </details>
+
+</body>
+
+</html>
